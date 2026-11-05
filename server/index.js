@@ -22,6 +22,7 @@ import { seed } from './seed.js';
 import * as editor from './editor.js';
 import * as tts from './tts.js';
 import * as rt from './rt.js';
+import * as studio from './studio.js';
 import { brandImage } from './render.js';
 const VERSION = '1.1.0';
 
@@ -374,6 +375,37 @@ r('POST', '/api/media/photo', async (req) => {
   db.media[mid] = { id: mid, uid: u.id, type: 'photo', cam: true, blob, poster: blob, tpl: null, prompt: '', createdAt: now() };
   save(); return { media: mediaOut(db.media[mid]) };
 });
+// Photo Studio: HD enhance, background swap ("you anywhere"), greeting cards. Free; owner unlimited; 30/day for others.
+r('GET', '/api/studio', async () => ({ enhance: studio.enhanceMode(), scenes: studio.BG_SCENES, cards: Object.keys(studio.CARDS) }));
+const bgThumbs = new Map();
+r('GET', '/api/studio/bg/:scene', async (req, p, res) => {
+  const sc = p.scene.replace(/\.jpg$/, ''); if (!studio.BG_SCENES.includes(sc) && !Object.values(studio.CARDS).includes(sc)) bad('not_found', 404);
+  if (!bgThumbs.has(sc)) { const sharp = (await import('sharp')).default; bgThumbs.set(sc, await sharp(path.join(ROOT, 'assets/bg', sc + '.jpg')).resize(240, 426, { fit: 'cover' }).jpeg({ quality: 78 }).toBuffer()); }
+  send(res, 200, bgThumbs.get(sc), { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+});
+r('POST', '/api/studio', async (req) => {
+  const u = need(req); const b = JSON.parse((await readBody(req, 14e6)).toString() || '{}');
+  const day = new Date().toISOString().slice(0, 10);
+  if (!isOwner(u)) { if (u.studioDay !== day) { u.studioDay = day; u.studioN = 0; } if (u.studioN >= 30) bad('slow_down', 429); }
+  if (studioBusy >= 2) bad('busy', 429);
+  const dec = s => { const m = /^data:image\/(png|jpeg|jpg|webp|heic|heif);base64,(.+)$/.exec(s || ''); return m ? Buffer.from(m[2], 'base64') : null; };
+  const img = dec(b.img), cut = dec(b.cut);
+  const text = String(b.text || '').trim().slice(0, 60); if (text && !check(text).ok) bad('unsafe_text', 422);
+  studioBusy++;
+  let out;
+  try {
+    if (b.op === 'enhance') { if (!img) bad('bad_image'); out = await studio.enhance(img); }
+    else if (b.op === 'bg') { if (!cut) bad('no_face'); out = await studio.bgSwap(cut, String(b.scene), u.lang); }
+    else if (b.op === 'card') { if (!cut && !img) bad('bad_image'); out = await studio.card(cut, img, String(b.kind), text || ' ', u.lang); }
+    else bad('bad_request');
+  } catch (e) { if (e instanceof HttpError) throw e; console.warn('[studio]', e.message); bad(e.message === 'bad_scene' ? 'bad_scene' : 'bad_image'); }
+  finally { studioBusy--; }
+  if (!isOwner(u)) u.studioN = (u.studioN || 0) + 1;
+  const blob = await store.putBlob(out, 'image/jpeg'); const mid = id(10);
+  db.media[mid] = { id: mid, uid: u.id, type: 'photo', cam: true, studio: b.op, blob, poster: blob, tpl: null, prompt: '', createdAt: now() };
+  save(); return { media: mediaOut(db.media[mid]) };
+});
+let studioBusy = 0;
 r('POST', '/api/reels', async (req) => {
   const u = need(req); const b = await json(req);
   const ups = (Array.isArray(b.uploads) ? b.uploads : []).filter(x => uploads.get(x)?.uid === u.id).slice(0, 12);

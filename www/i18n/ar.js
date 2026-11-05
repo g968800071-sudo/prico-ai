@@ -51,4 +51,16 @@ export default {
   live: "مباشر", goLive: "ابدأ بثًا مباشرًا", topGifters: "أكثر المهدين", noLives: "لا أحد في بث مباشر الآن", goLiveFirst: "كن أول من يبث مباشرة", noGiftsYet: "لا توجد هدايا بعد", sayHi: "قل شيئًا…", endLive: "إنهاء", joined: "انضم", viewers: "مشاهد", diamonds: "ماسات", liveTitlePh: "أضف عنوانًا…", liveRules: "كن لطيفًا. ممنوع العري والكراهية والقاصرون. البث خاضع للإشراف ويمكن الإبلاغ عنه.", youAreLive: "أنت في بث مباشر! 🎉", liveEnded: "انتهى هذا البث", liveEndedHost: "بث رائع!", connecting: "جارٍ الاتصال…", tapForSound: "اضغط لتشغيل الصوت 🔊", liveLowBw: "وضع البيانات المنخفضة", livePaused: "أوقف المضيف البث مؤقتًا", liveFull: "هذا البث ممتلئ ({n} مشاهد)", getCoins: "احصل على عملات", count: "العدد", sendGift: "أرسل هدية", coins: "عملات", fromLive: "ربح من البث", watchLive: "شاهد البث",
   g_rose: "وردة", g_heart: "قلب", g_fire: "نار", g_donut: "دونات", g_crown: "تاج", g_rocket: "صاروخ", g_unicorn: "يونيكورن", g_lion: "أسد",
   e_no_coins: "العملات غير كافية", e_slow_down: "تمهّل قليلًا", e_blocked: "غير متاح", e_live_ended: "انتهى هذا البث", e_own_live: "لا يمكنك إهداء بثك الخاص", e_bad_media: "الملف غير مدعوم", e_bad_audio: "الصوت غير مدعوم", e_empty: "اكتب شيئًا أولًا", e_too_many_uploads: "ملفات كثيرة جدًا — حاول لاحقًا", e_bad_project: "المشروع غير صالح", e_not_found: "غير موجود",
+  // studio
+  plStudio: "استوديو الصور", plStudioD: "تحسين، أنت في أي مكان، بطاقات", stTitle: "استوديو الصور", stEnhance: "تحسين HD", stAnywhere: "أنت في أي مكان", stCards: "بطاقات",
+  stAvatars: "أفاتار", stWorking: "جارٍ صنع السحر…", stPick: "اختر صورة", stEnhanceD: "اجعل الصور الضبابية أو القديمة أو المظلمة واضحة وحيوية في ثوانٍ.", stEnhanceHint: "الأفضل: الصور القديمة أو الضبابية أو المظلمة", stBefore: "قبل",
+  stAfter: "بعد", stAnother: "صورة أخرى", stAnywhereD: "كن في أي مكان: نقصّك على هاتفك ونضعك في مكان جديد.", stPersonHint: "الأفضل: صورة لشخص واحد", stCutting: "جارٍ قصّك…", stPickPlace: "اختر مكانًا",
+  stCardsD: "بطاقات تهنئة بوجهك وكلماتك — جاهزة للإرسال.", stCardPh: "رسالتك…", stUseFace: "استخدم وجهي", e_bad_scene: "مشهد غير معروف", e_bad_request: "حدث خطأ — حاول مرة أخرى", sc_beach: "شاطئ",
+  sc_paris: "باريس", sc_nyc: "نيويورك", sc_tokyo: "طوكيو", sc_dubai: "دبي", sc_space: "الفضاء", sc_moon: "القمر",
+  sc_neon: "مدينة النيون", sc_sakura: "ساكورا", sc_castle: "قلعة", sc_redcarpet: "السجادة الحمراء", sc_runway: "منصة العرض", sc_ocean: "تحت الماء",
+  sc_snowglobe: "كرة الثلج", sc_disco: "ديسكو", sc_office: "مكتب", sc_stadium: "ملعب", sc_pool: "حفلة مسبح", sc_berlin: "برلين",
+  sc_ghibli: "أنمي", sc_comic: "قصص مصورة", sc_vintage: "عتيق", cd_birthday: "عيد ميلاد", cd_newyear: "رأس السنة", cd_love: "حب",
+  cd_christmas: "عيد الميلاد", cd_diwali: "ديوالي", cd_ramadan: "رمضان", cd_lunar: "السنة القمرية", cd_halloween: "هالوين", cd_wedding: "زفاف",
+  cd_cake: "حفلة", cdt_birthday: "عيد ميلاد سعيد! 🎉", cdt_newyear: "سنة 2027 سعيدة! ✨", cdt_love: "أحبك ❤️", cdt_christmas: "عيد ميلاد مجيد! 🎄", cdt_diwali: "ديوالي سعيد! 🪔",
+  cdt_ramadan: "رمضان مبارك 🌙", cdt_lunar: "سنة قمرية سعيدة! 🧧", cdt_halloween: "هالوين سعيد! 🎃", cdt_wedding: "عروسان جديدان! 💍", cdt_cake: "هيا نحتفل! 🥳",
 };

@@ -6,6 +6,7 @@ import { needAuth, go, openShop, refreshMe, walletChip } from './app.js';
 let root, q = '', grp = 'all';
 const tpl = id => S.cat.templates.find(x => x.id === id);
 
+export function showGroup(g) { grp = g || 'all'; if (root) mountCreate(root); }
 export function mountCreate(el) {
   root = el;
   el.innerHTML = `<div class="pad">
@@ -35,8 +36,8 @@ function draw() {
   if (grp !== 'all') list = list.filter(x => x.group === grp);
   if (q || grp !== 'all') { const g = h('<div class="grid"></div>'); list.forEach(x => g.append(card(x))); body.append(g); if (!list.length) body.append(h(`<div class="empty" style="height:200px">🔍</div>`)); return; }
   // quick tools (camera FX, editor, photo FX, LIVE)
-  const qt = h(`<div class="quick">${[['cam', '📸', 'plCamera'], ['edit', '✂️', 'plEditor'], ['pfx', '🪄', 'plPhotoFx'], ['live', '🔴', 'plLive']].map(([k, e, n]) => `<button data-k="${k}" class="qk qk-${k}"><b>${e}</b><span>${esc(t(n))}</span></button>`).join('')}</div>`);
-  $$('button', qt).forEach(b => b.onclick = async () => { haptic(); const k = b.dataset.k; if (k === 'cam') (await import('./camera.js')).openCamera(); else if (k === 'edit') (await import('./editor.js')).openEditor(); else if (k === 'pfx') (await import('./camera.js')).openPhotoFx(); else (await import('./live.js')).goLive(); });
+  const qt = h(`<div class="quick">${[['cam', '📸', 'plCamera'], ['studio', '📷', 'plStudio'], ['edit', '✂️', 'plEditor'], ['pfx', '🪄', 'plPhotoFx'], ['live', '🔴', 'plLive']].map(([k, e, n]) => `<button data-k="${k}" class="qk qk-${k}"><b>${e}</b><span>${esc(t(n))}</span></button>`).join('')}</div>`);
+  $$('button', qt).forEach(b => b.onclick = async () => { haptic(); const k = b.dataset.k; if (k === 'cam') (await import('./camera.js')).openCamera(); else if (k === 'edit') (await import('./editor.js')).openEditor(); else if (k === 'pfx') (await import('./camera.js')).openPhotoFx(); else if (k === 'studio') (await import('./studio.js')).openStudio(); else (await import('./live.js')).goLive(); });
   body.append(qt);
   // challenge hero
   const ch = S.cat.challenge, ct = tpl(ch.tpl);

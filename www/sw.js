@@ -1,6 +1,6 @@
 // PRICO AI service worker: app shell cache-first, API network-only, media cache with size cap.
 const V = 'prico-v3';
-const SHELL = ['/', '/index.html', '/app.css?v=2', '/app.js', '/core.js', '/feed.js', '/create.js', '/reelsui.js', '/camera.js', '/editor.js', '/fx.js', '/rt.js', '/inbox.js', '/live.js', '/icons.js', '/i18n.js', '/i18n/en.js', '/logo.svg', '/fonts/MA-ExtraBold.ttf', '/icons/icon-192.png', '/manifest.webmanifest'];
+const SHELL = ['/', '/index.html', '/app.css?v=2', '/app.js', '/core.js', '/feed.js', '/create.js', '/reelsui.js', '/camera.js', '/editor.js', '/fx.js', '/rt.js', '/inbox.js', '/live.js', '/studio.js', '/icons.js', '/i18n.js', '/i18n/en.js', '/logo.svg', '/fonts/MA-ExtraBold.ttf', '/icons/icon-192.png', '/manifest.webmanifest'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k !== 'prico-prev').map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

@@ -51,4 +51,16 @@ export default {
   live: "LIVE", goLive: "Go LIVE", topGifters: "Top gifters", noLives: "Nobody is LIVE right now", goLiveFirst: "Be the first to go LIVE", noGiftsYet: "No gifts yet", sayHi: "Say something…", endLive: "End LIVE", joined: "joined", viewers: "viewers", diamonds: "diamonds", liveTitlePh: "Add a title…", liveRules: "Be kind. No nudity, hate or minors. LIVEs are moderated and can be reported.", youAreLive: "You are LIVE! 🎉", liveEnded: "This LIVE has ended", liveEndedHost: "Great LIVE!", connecting: "Connecting…", tapForSound: "Tap for sound 🔊", liveLowBw: "Low-bandwidth mode", livePaused: "The host paused the LIVE", liveFull: "This LIVE is full ({n} viewers)", getCoins: "Get coins", count: "Count", sendGift: "Send a gift", coins: "coins", fromLive: "earned on LIVE", watchLive: "Watch LIVE",
   g_rose: "Rose", g_heart: "Heart", g_fire: "Fire", g_donut: "Donut", g_crown: "Crown", g_rocket: "Rocket", g_unicorn: "Unicorn", g_lion: "Lion",
   e_no_coins: "Not enough coins", e_slow_down: "Slow down a little", e_blocked: "Not available", e_live_ended: "This LIVE has ended", e_own_live: "You can’t send gifts to your own LIVE", e_bad_media: "File not supported", e_bad_audio: "Audio not supported", e_empty: "Type something first", e_too_many_uploads: "Too many files — try again later", e_bad_project: "Project is invalid", e_not_found: "Not found",
+  // studio
+  plStudio: "Photo Studio", plStudioD: "Enhance, you anywhere, cards", stTitle: "Photo Studio", stEnhance: "HD Enhance", stAnywhere: "You anywhere", stCards: "Cards",
+  stAvatars: "Avatars", stWorking: "Working its magic…", stPick: "Pick a photo", stEnhanceD: "Make blurry, old or low-light photos sharp and vivid in seconds.", stEnhanceHint: "Old, blurry or dark photos work best", stBefore: "Before",
+  stAfter: "After", stAnother: "Another photo", stAnywhereD: "Put yourself anywhere: we cut you out on your phone and drop you into a new place.", stPersonHint: "A photo with one person works best", stCutting: "Cutting you out…", stPickPlace: "Pick a place",
+  stCardsD: "Greeting cards with your face and your words — ready to send.", stCardPh: "Your message…", stUseFace: "Use my face", e_bad_scene: "Unknown scene", e_bad_request: "Something is off — try again", sc_beach: "Beach",
+  sc_paris: "Paris", sc_nyc: "New York", sc_tokyo: "Tokyo", sc_dubai: "Dubai", sc_space: "Space", sc_moon: "Moon",
+  sc_neon: "Neon city", sc_sakura: "Sakura", sc_castle: "Castle", sc_redcarpet: "Red carpet", sc_runway: "Runway", sc_ocean: "Underwater",
+  sc_snowglobe: "Snow globe", sc_disco: "Disco", sc_office: "Office", sc_stadium: "Stadium", sc_pool: "Pool party", sc_berlin: "Berlin",
+  sc_ghibli: "Anime", sc_comic: "Comic", sc_vintage: "Vintage", cd_birthday: "Birthday", cd_newyear: "New Year", cd_love: "Love",
+  cd_christmas: "Christmas", cd_diwali: "Diwali", cd_ramadan: "Ramadan", cd_lunar: "Lunar New Year", cd_halloween: "Halloween", cd_wedding: "Wedding",
+  cd_cake: "Party", cdt_birthday: "Happy birthday! 🎉", cdt_newyear: "Happy New Year 2027! ✨", cdt_love: "I love you ❤️", cdt_christmas: "Merry Christmas! 🎄", cdt_diwali: "Happy Diwali! 🪔",
+  cdt_ramadan: "Ramadan Mubarak 🌙", cdt_lunar: "Happy Lunar New Year! 🧧", cdt_halloween: "Happy Halloween! 🎃", cdt_wedding: "Just married! 💍", cdt_cake: "Let’s party! 🥳",
 };

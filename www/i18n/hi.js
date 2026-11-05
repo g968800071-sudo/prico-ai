@@ -51,4 +51,16 @@ export default {
   live: "LIVE", goLive: "LIVE जाएँ", topGifters: "टॉप गिफ़्टर", noLives: "अभी कोई LIVE नहीं है", goLiveFirst: "सबसे पहले LIVE जाएँ", noGiftsYet: "अभी कोई गिफ़्ट नहीं", sayHi: "कुछ कहें…", endLive: "LIVE ख़त्म करें", joined: "जुड़े", viewers: "दर्शक", diamonds: "डायमंड", liveTitlePh: "टाइटल जोड़ें…", liveRules: "विनम्र रहें। नग्नता, नफ़रत और नाबालिग वर्जित हैं। LIVE मॉडरेट होते हैं और रिपोर्ट किए जा सकते हैं।", youAreLive: "आप LIVE हैं! 🎉", liveEnded: "यह LIVE ख़त्म हो गया", liveEndedHost: "शानदार LIVE!", connecting: "कनेक्ट हो रहा है…", tapForSound: "आवाज़ के लिए टैप करें 🔊", liveLowBw: "लो-बैंडविड्थ मोड", livePaused: "होस्ट ने LIVE रोका है", liveFull: "यह LIVE भरा हुआ है ({n} दर्शक)", getCoins: "कॉइन लें", count: "संख्या", sendGift: "गिफ़्ट भेजें", coins: "कॉइन", fromLive: "LIVE से कमाए", watchLive: "LIVE देखें",
   g_rose: "गुलाब", g_heart: "दिल", g_fire: "आग", g_donut: "डोनट", g_crown: "ताज", g_rocket: "रॉकेट", g_unicorn: "यूनिकॉर्न", g_lion: "शेर",
   e_no_coins: "पर्याप्त कॉइन नहीं", e_slow_down: "थोड़ा धीरे", e_blocked: "उपलब्ध नहीं", e_live_ended: "यह LIVE ख़त्म हो गया", e_own_live: "आप अपने ही LIVE में गिफ़्ट नहीं भेज सकते", e_bad_media: "फ़ाइल समर्थित नहीं", e_bad_audio: "ऑडियो समर्थित नहीं", e_empty: "पहले कुछ लिखें", e_too_many_uploads: "बहुत सारी फ़ाइलें — बाद में कोशिश करें", e_bad_project: "प्रोजेक्ट अमान्य है", e_not_found: "नहीं मिला",
+  // studio
+  plStudio: "फ़ोटो स्टूडियो", plStudioD: "एन्हांस, कहीं भी आप, कार्ड", stTitle: "फ़ोटो स्टूडियो", stEnhance: "HD एन्हांस", stAnywhere: "कहीं भी आप", stCards: "कार्ड",
+  stAvatars: "अवतार", stWorking: "जादू चल रहा है…", stPick: "फ़ोटो चुनें", stEnhanceD: "धुंधली, पुरानी या अंधेरी फ़ोटो को सेकंडों में साफ़ और चमकदार बनाएँ।", stEnhanceHint: "पुरानी, धुंधली या अंधेरी फ़ोटो पर सबसे अच्छा", stBefore: "पहले",
+  stAfter: "बाद में", stAnother: "दूसरी फ़ोटो", stAnywhereD: "कहीं भी पहुँचें: हम आपके फ़ोन पर ही आपको काटकर नई जगह पर रख देते हैं।", stPersonHint: "एक व्यक्ति वाली फ़ोटो सबसे अच्छी", stCutting: "आपको काटा जा रहा है…", stPickPlace: "जगह चुनें",
+  stCardsD: "आपके चेहरे और आपके शब्दों वाले ग्रीटिंग कार्ड — भेजने के लिए तैयार।", stCardPh: "आपका संदेश…", stUseFace: "मेरा चेहरा इस्तेमाल करें", e_bad_scene: "अज्ञात दृश्य", e_bad_request: "कुछ गड़बड़ हुई — फिर कोशिश करें", sc_beach: "बीच",
+  sc_paris: "पेरिस", sc_nyc: "न्यूयॉर्क", sc_tokyo: "टोक्यो", sc_dubai: "दुबई", sc_space: "अंतरिक्ष", sc_moon: "चाँद",
+  sc_neon: "नियॉन सिटी", sc_sakura: "सकुरा", sc_castle: "महल", sc_redcarpet: "रेड कार्पेट", sc_runway: "रनवे", sc_ocean: "पानी के नीचे",
+  sc_snowglobe: "स्नो ग्लोब", sc_disco: "डिस्को", sc_office: "ऑफ़िस", sc_stadium: "स्टेडियम", sc_pool: "पूल पार्टी", sc_berlin: "बर्लिन",
+  sc_ghibli: "एनीमे", sc_comic: "कॉमिक", sc_vintage: "विंटेज", cd_birthday: "जन्मदिन", cd_newyear: "नया साल", cd_love: "प्यार",
+  cd_christmas: "क्रिसमस", cd_diwali: "दिवाली", cd_ramadan: "रमज़ान", cd_lunar: "चीनी नववर्ष", cd_halloween: "हैलोवीन", cd_wedding: "शादी",
+  cd_cake: "पार्टी", cdt_birthday: "जन्मदिन मुबारक! 🎉", cdt_newyear: "नया साल 2027 मुबारक! ✨", cdt_love: "मैं तुमसे प्यार करता/करती हूँ ❤️", cdt_christmas: "मेरी क्रिसमस! 🎄", cdt_diwali: "शुभ दिवाली! 🪔",
+  cdt_ramadan: "रमज़ान मुबारक 🌙", cdt_lunar: "चीनी नववर्ष की शुभकामनाएँ! 🧧", cdt_halloween: "हैप्पी हैलोवीन! 🎃", cdt_wedding: "अभी-अभी शादी हुई! 💍", cdt_cake: "चलो पार्टी करें! 🥳",
 };

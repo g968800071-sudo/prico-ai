@@ -86,7 +86,7 @@ function buildTabs() {
 
 // ---------- + : create anything ----------
 export function openPlus() {
-  const items = [['cam', '📸', 'plCamera', 'plCameraD', 'hot'], ['edit', '✂️', 'plEditor', 'plEditorD', 'new'], ['live', '🔴', 'plLive', 'plLiveD', 'new'], ['ai', '✨', 'plTemplates', 'plTemplatesD'], ['reels', '🎬', 'plReels', 'plReelsD'], ['pfx', '🪄', 'plPhotoFx', 'plPhotoFxD', 'new']];
+  const items = [['cam', '📸', 'plCamera', 'plCameraD', 'hot'], ['edit', '✂️', 'plEditor', 'plEditorD', 'new'], ['live', '🔴', 'plLive', 'plLiveD', 'new'], ['ai', '✨', 'plTemplates', 'plTemplatesD'], ['reels', '🎬', 'plReels', 'plReelsD'], ['studio', '📷', 'plStudio', 'plStudioD', 'hot'], ['pfx', '🪄', 'plPhotoFx', 'plPhotoFxD', 'new']];
   const body = h(`<div class="plusGrid">${items.map(([k, e, a, b, bd]) => `<button data-k="${k}" class="pl pl-${k}">${bd ? `<span class="badge ${bd}">${esc(t(bd === 'hot' ? 'hot' : 'isNew'))}</span>` : ''}<b>${e}</b><div><div class="pt">${esc(t(a))}</div><div class="mut xs">${esc(t(b))}</div></div></button>`).join('')}</div>`);
   const sh = sheet({ title: t('plTitle'), body });
   $$('button', body).forEach(b => b.onclick = async () => {
@@ -97,6 +97,7 @@ export function openPlus() {
     else if (k === 'ai') go('create');
     else if (k === 'reels') go('reels');
     else if (k === 'pfx') (await import('./camera.js')).openPhotoFx();
+    else if (k === 'studio') (await import('./studio.js')).openStudio();
   });
 }
 export { go as goRoute };

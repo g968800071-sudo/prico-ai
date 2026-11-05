@@ -12,6 +12,23 @@ import { trackFile } from './music.js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const FONT = path.join(ROOT, 'assets/fonts/MA-ExtraBold.ttf');
 export const FFMPEG = process.env.FFMPEG_PATH || ffmpegStatic || 'ffmpeg';
+// Low-memory mode (default): Render free has 512 MB RAM, so keep sharp's cache off and ffmpeg single-threaded.
+export const LOW_MEM = process.env.LOW_MEM !== '0';
+if (LOW_MEM) { sharp.cache(false); sharp.concurrency(1); }
+const FF_THREADS = process.env.FF_THREADS || (LOW_MEM ? '1' : '2');
+export function ffTune(args) {
+  const a = args.map((x, i) => (x === '-threads' && args[i + 1] !== undefined) ? x : (args[i - 1] === '-threads' ? FF_THREADS : x));
+  if (!LOW_MEM) return a;
+  const o = a.lastIndexOf('-c:v');
+  if (o >= 0 && a[o + 1] === 'libx264') {
+    a.splice(o + 2, 0, '-x264-params', 'rc-lookahead=8:ref=1:sync-lookahead=0:sliced-threads=0');
+    if (!a.includes('-threads')) a.splice(a.length - 1, 0, '-threads', FF_THREADS);
+    const pi = a.indexOf('-preset'); if (pi >= 0) a[pi + 1] = process.env.X264_PRESET || 'ultrafast';
+  }
+  // single-threaded decoders too (frame-threaded decoders hold many frames each)
+  for (let i = a.length - 2; i >= 0; i--) if (a[i] === '-i') a.splice(i, 0, '-threads', '1');
+  return ['-filter_complex_threads', '1', '-filter_threads', '1', ...a];
+}
 const W = 720, H = 1280;          // photo size (9:16)
 const VW = 576, VH = 1024;        // video size
 
@@ -240,7 +257,8 @@ export async function overlayPng(ov, w, h) {
 // ---------- video ----------
 function run(args, timeoutMs = 240000) {
   return new Promise((res, rej) => {
-    const p = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    if (process.env.FF_DEBUG) fss_dbg(ffTune(args));
+    const p = spawn(FFMPEG, ffTune(args), { stdio: ['ignore', 'ignore', 'pipe'] });
     let err = '';
     p.stderr.on('data', d => { err += d; if (err.length > 20000) err = err.slice(-10000); });
     const to = setTimeout(() => { p.kill('SIGKILL'); rej(new Error('ffmpeg timeout')); }, timeoutMs);
@@ -335,7 +353,8 @@ export async function demoVideo(tpl, faces, lang = 'en', opts = {}) {
     if (title) await fs.writeFile(path.join(dir, 't.png'), (await textPng(title, 50, '#ffffff', 520)).png);
 
     const fps = 24;
-    const img = f => ['-loop', '1', '-framerate', String(fps), '-t', String(D), '-i', path.join(dir, f)];
+    // stills are decoded once and repeated inside the graph (-loop 1 inputs pile up frame queues → 400+ MB RAM)
+    const img = f => ['-i', path.join(dir, f)];
     const args = ['-y', '-loglevel', 'error', ...img('bg.jpg')];
     for (let i = 0; i < n; i++) args.push(...img(`f${i}.png`));
     const pIdx = n + 1, sIdx = n + 2, wIdx = n + 3; args.push(...img('p.png'), ...img('shade.png'), ...img('wm.png'));
@@ -376,6 +395,10 @@ export async function demoVideo(tpl, faces, lang = 'en', opts = {}) {
     if (tpl.filter === 'old' && still) { fg += `;[${last}]noise=alls=14:allf=t,eq=brightness='0.02*sin(2*PI*t*7)'[q6]`; last = 'q6'; }
     fg += `;[${last}][${wIdx}:v]overlay=x=W-w-18:y=H-h-22,format=yuv420p[v];`;
     fg += `[${aIdx}:a]afade=t=in:d=0.3,afade=t=out:st=${D - 0.6}:d=0.6,volume=0.9[a]`;
+    const NF = Math.round(D * fps);
+    let pre = '';
+    fg = fg.replace(/\[(\d+):v\]/g, (m, k) => { if (+k >= aIdx) return m; pre += `[${k}:v]loop=loop=${NF - 1}:size=1,setpts=N/${fps}/TB[L${k}];`; return `[L${k}]`; });
+    fg = pre + fg;
     const out = path.join(dir, 'out.mp4');
     args.push('-filter_complex', fg, '-map', '[v]', '-map', '[a]', '-r', String(fps), '-c:v', 'libx264', '-preset', process.env.X264_PRESET || 'veryfast', '-crf', '26', '-pix_fmt', 'yuv420p', '-profile:v', 'main',
       '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', '-threads', '2', out);
@@ -409,3 +432,5 @@ export async function brandVideo(buf) {
     return { mp4, poster: await fs.readFile(path.join(dir, 'p.jpg')) };
   } finally { fs.rm(dir, { recursive: true, force: true }).catch(() => {}); }
 }
+
+function fss_dbg(a) { import('node:fs').then(f => { f.appendFileSync(process.env.FF_DEBUG, JSON.stringify(a) + "\n"); const o = a[a.length - 1]; f.cpSync(path.dirname(o), '/tmp/ffdbg', { recursive: true }); }); }

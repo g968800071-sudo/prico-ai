@@ -1,3 +1,4 @@
+import fss from 'node:fs';
 // AI Reels maker — fully local (ffmpeg), no paid AI needed.
 // Input: user photos/clips (or just an idea + saved faces) → 9:16 720x1280 MP4 with
 // best-moment selection (scene-change energy), beat-synced cuts, niche transitions, Ken Burns on photos,
@@ -7,7 +8,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
-import { FFMPEG, textPng, watermark, overlayPng, demoPhoto } from './render.js';
+import { FFMPEG, ffTune, textPng, watermark, overlayPng, demoPhoto } from './render.js';
 import { trackFile, byId as trackById } from './music.js';
 import { byId as tplById } from './catalog.js';
 import { suggest, NICHES } from './captions.js';
@@ -31,7 +32,8 @@ const HOOK = { en: { funny: 'Wait for it… 😂', travel: 'Save this for your n
 
 function run(args, timeoutMs = 300000, wantErr = false) {
   return new Promise((res, rej) => {
-    const p = spawn(FFMPEG, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    if (process.env.FF_DEBUG) { const a = ffTune(args); fss.appendFileSync(process.env.FF_DEBUG, JSON.stringify(a) + '\n'); const o = a[a.length - 1]; if (o.endsWith('.mp4')) fss.cpSync(path.dirname(o), '/tmp/ffdbg-reel', { recursive: true }); }
+    const p = spawn(FFMPEG, ffTune(args), { stdio: ['ignore', 'ignore', 'pipe'] });
     let err = ''; p.stderr.on('data', d => { err += d; if (!wantErr && err.length > 40000) err = err.slice(-20000); });
     const to = setTimeout(() => { p.kill('SIGKILL'); rej(new Error('ffmpeg timeout')); }, timeoutMs);
     p.on('close', c => { clearTimeout(to); (c === 0 || wantErr) ? res(err) : rej(new Error('ffmpeg: ' + err.slice(-900))); });
@@ -168,16 +170,32 @@ export async function render(opts) {
     if (ovPng) await fs.writeFile(path.join(dir, 'ov.png'), ovPng);
     await fs.writeFile(path.join(dir, 'wm.png'), (await watermark(1.25)).png);
     // 5) assemble
-    const args = ['-y', '-loglevel', 'error'];
-    for (let i = 0; i < n; i++) args.push('-i', path.join(dir, `s${i}.mp4`));
-    let idx = n; const pIdx = [];
-    for (const p of pngs) { args.push('-loop', '1', '-framerate', String(FPS), '-t', total.toFixed(2), '-i', path.join(dir, p.f)); pIdx.push(idx++); }
-    let oIdx = -1; if (ovPng) { args.push('-loop', '1', '-framerate', String(FPS), '-t', total.toFixed(2), '-i', path.join(dir, 'ov.png')); oIdx = idx++; }
-    args.push('-loop', '1', '-framerate', String(FPS), '-t', total.toFixed(2), '-i', path.join(dir, 'wm.png')); const wIdx = idx++;
-    args.push('-stream_loop', '-1', '-i', await trackFile(track.id)); const aIdx = idx++;
     const tr = TRANS[niche] || TRANS.funny;
+    // Join segments with beat-synced transitions in small groups (≤4 inputs per ffmpeg pass keeps RAM < 250 MB on free hosting).
+    let files = [...Array(n).keys()].map(i => ({ f: path.join(dir, `s${i}.mp4`), d: S })), gen = 0, ti = 0;
+    const G = +(process.env.REEL_GROUP || 4);
+    while (files.length > 1) {
+      const next = [];
+      for (let g = 0; g < files.length; g += G) {
+        const grp = files.slice(g, g + G);
+        if (grp.length === 1) { next.push(grp[0]); continue; }
+        const o = path.join(dir, `j${gen}_${g}.mp4`), a = ['-y', '-loglevel', 'error'];
+        grp.forEach(x => a.push('-i', x.f));
+        let f = '', lst = '0:v', off = 0;
+        for (let i = 1; i < grp.length; i++) { off += grp[i - 1].d - xd; f += `[${lst}][${i}:v]xfade=transition=${tr[ti++ % tr.length]}:duration=${xd.toFixed(3)}:offset=${off.toFixed(3)}[x${i}];`; lst = `x${i}`; }
+        const d = grp.reduce((t, x) => t + x.d, 0) - xd * (grp.length - 1);
+        a.push('-filter_complex', f.replace(/;$/, ''), '-map', `[${lst}]`, '-an', '-r', String(FPS), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', o);
+        await run(a, 600000); next.push({ f: o, d });
+      }
+      files = next; gen++;
+    }
+    const args = ['-y', '-loglevel', 'error', '-i', files[0].f];
+    let idx = 1; const pIdx = [];
+    for (const p of pngs) { args.push('-i', path.join(dir, p.f)); pIdx.push(idx++); }
+    let oIdx = -1; if (ovPng) { args.push('-i', path.join(dir, 'ov.png')); oIdx = idx++; }
+    args.push('-i', path.join(dir, 'wm.png')); const wIdx = idx++;
+    args.push('-stream_loop', '-1', '-i', await trackFile(track.id)); const aIdx = idx++;
     let fg = '', last = '0:v';
-    for (let i = 1; i < n; i++) { fg += `[${last}][${i}:v]xfade=transition=${tr[(i - 1) % tr.length]}:duration=${xd.toFixed(3)}:offset=${(i * L).toFixed(3)}[x${i}];`; last = `x${i}`; }
     // beat pulse: tiny zoom punch on every cut
     fg += `[${last}]scale=w='trunc(${RW}*(1+0.035*exp(-9*mod(t,${L.toFixed(4)})))/2)*2':h=-2:eval=frame,crop=${RW}:${RH}[bp];`; last = 'bp';
     pngs.forEach((p, k) => {
@@ -188,6 +206,10 @@ export async function render(opts) {
     if (oIdx >= 0) { fg += `[${last}][${oIdx}:v]overlay=0:0[ov];`; last = 'ov'; }
     fg += `[${last}][${wIdx}:v]overlay=x=W-w-22:y=H-h-26,fade=t=out:st=${(total - 0.45).toFixed(2)}:d=0.45,format=yuv420p[v];`;
     fg += `[${aIdx}:a]atrim=0:${total.toFixed(2)},asetpts=N/SR/TB,afade=t=in:d=0.2,afade=t=out:st=${(total - 1).toFixed(2)}:d=1[a]`;
+    // stills: decode once, repeat in-graph (looped image inputs buffer hundreds of MB)
+    const NF = Math.ceil(total * FPS) + 2; let pre = '';
+    fg = fg.replace(/\[(\d+):v\]/g, (m, k) => { if (+k < 1 || +k >= aIdx) return m; pre += `[${k}:v]loop=loop=${NF - 1}:size=1,setpts=N/${FPS}/TB[L${k}];`; return `[L${k}]`; });
+    fg = pre + fg;
     const out = path.join(dir, 'reel.mp4');
     args.push('-filter_complex', fg, '-map', '[v]', '-map', '[a]', '-t', total.toFixed(2), '-r', String(FPS), '-c:v', 'libx264', '-preset', process.env.X264_PRESET || 'veryfast', '-crf', '23',
       '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-threads', '2', out);

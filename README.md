@@ -37,6 +37,9 @@ Node ≥ 20. `ffmpeg-static` and `sharp` ship their binaries — no system packa
 |---|---|---|
 | `PORT` | 8080 | HTTP port |
 | `PUBLIC_URL` | `http://localhost:PORT` | Absolute URL for share links / Open Graph |
+| `LOW_MEM` | on | `0` disables low-memory mode (single-threaded ffmpeg, ultrafast x264, sharp cache off). Keep on for Render free (512 MB) |
+| `MALLOC_ARENA_MAX` | – | Set `2` on small instances (cuts Node/sharp RSS ~40%) |
+| `REEL_GROUP` | 4 | Segments joined per ffmpeg pass in the Reels maker |
 | `DATABASE_URL` | – | Postgres → users, posts and media persist (tables `prico_doc`, `prico_blob`). Without it: local files in `DATA_DIR` (ephemeral on Render free) |
 | `PGSSL` | auto | `off` to disable TLS for Postgres |
 | `DATA_DIR` | `./data` | Local storage folder |

@@ -8,7 +8,7 @@ export default {
   tabHome: 'Главная', tabCreate: 'Создать', tabReels: 'Рилс', tabTop: 'Топ', tabMe: 'Я',
   forYou: 'Для тебя', following: 'Подписки', challenge: 'Челлендж',
   wantSame: 'Вставь меня', comments: 'Комментарии', share: 'Поделиться', report: 'Пожаловаться', addComment: 'Комментарий…', send: 'Отправить', noComments: 'Будь первым 💬',
-  search: 'Поиск трендов', all: 'Все', hot: 'ХИТ', faces: '{n} лица',
+  search: 'Поиск трендов', all: 'Все', hot: 'ХИТ', isNew: 'НОВЫЙ', free: 'БЕСПЛАТНО', faces: '{n} лица',
   facesTitle: 'Твои селфи', facesHint: 'Добавь 1–3 чётких селфи: лицо в камеру, хороший свет, без очков.', addFace: 'Добавить селфи', cutting: 'Ищем тебя на фото…',
   consent: 'Это я (или у меня есть разрешение). Всем на фото 18+ или родитель/опекун согласен.', noPerson: 'Не нашли человека — попробуй другое фото', del: 'Удалить',
   pickFaces: 'Кто в кадре?', pickN: 'Выбери {n}', customize: 'Добавь своё', text: 'Текст', stickers: 'Стикеры', addText: 'Смешная подпись…', top: 'Сверху', center: 'Центр', bottom: 'Снизу',

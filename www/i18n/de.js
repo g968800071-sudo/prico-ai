@@ -8,7 +8,7 @@ export default {
   tabHome: 'Start', tabCreate: 'Erstellen', tabReels: 'Reels', tabTop: 'Top', tabMe: 'Ich',
   forYou: 'Für dich', following: 'Folge ich', challenge: 'Challenge',
   wantSame: 'Mich einsetzen', comments: 'Kommentare', share: 'Teilen', report: 'Melden', addComment: 'Kommentieren…', send: 'Senden', noComments: 'Schreib den ersten Kommentar 💬',
-  search: 'Trends suchen', all: 'Alle', hot: 'HOT', isNew: 'NEU', faces: '{n} Gesichter',
+  search: 'Trends suchen', all: 'Alle', free: 'GRATIS', hot: 'HOT', isNew: 'NEU', faces: '{n} Gesichter',
   facesTitle: 'Deine Selfies', facesHint: '1–3 klare Selfies: frontal, gutes Licht, keine Sonnenbrille.', addFace: 'Selfie hinzufügen', cutting: 'Wir finden dich im Foto…',
   consent: 'Das bin ich (oder ich habe die Erlaubnis). Alle sind 18+ oder ein Elternteil hat zugestimmt.', noPerson: 'Keine Person gefunden — versuch ein anderes Foto', del: 'Löschen',
   pickFaces: 'Wer ist dabei?', pickN: 'Wähle {n}', customize: 'Mach es persönlich', text: 'Text', stickers: 'Sticker', addText: 'Lustiger Spruch…', top: 'Oben', center: 'Mitte', bottom: 'Unten',

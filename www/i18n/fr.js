@@ -8,7 +8,7 @@ export default {
   tabHome: 'Accueil', tabCreate: 'Créer', tabReels: 'Reels', tabTop: 'Top', tabMe: 'Moi',
   forYou: 'Pour toi', following: 'Abonnements', challenge: 'Défi',
   wantSame: 'Mets-moi dedans', comments: 'Commentaires', share: 'Partager', report: 'Signaler', addComment: 'Ajouter un commentaire…', send: 'Envoyer', noComments: 'Sois le premier à commenter 💬',
-  search: 'Chercher des tendances', all: 'Tout', hot: 'HOT', isNew: 'NOUVEAU', faces: '{n} visages',
+  search: 'Chercher des tendances', all: 'Tout', free: 'GRATUIT', hot: 'HOT', isNew: 'NOUVEAU', faces: '{n} visages',
   facesTitle: 'Tes selfies', facesHint: 'Ajoute 1 à 3 selfies nets : de face, bonne lumière, sans lunettes de soleil.', addFace: 'Ajouter un selfie', cutting: 'On te cherche sur la photo…',
   consent: "C'est moi (ou j'ai l'autorisation). Tout le monde a 18+ ou un parent a accepté.", noPerson: 'Personne trouvé — essaie une autre photo', del: 'Supprimer',
   pickFaces: 'Qui est dedans ?', pickN: 'Choisis {n}', customize: 'Personnalise', text: 'Texte', stickers: 'Stickers', addText: 'Une phrase drôle…', top: 'Haut', center: 'Milieu', bottom: 'Bas',

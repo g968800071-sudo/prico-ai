@@ -8,7 +8,7 @@ export default {
   tabHome: 'Головна', tabCreate: 'Створити', tabReels: 'Рілс', tabTop: 'Топ', tabMe: 'Я',
   forYou: 'Для тебе', following: 'Підписки', challenge: 'Челендж',
   wantSame: 'Встав мене', comments: 'Коментарі', share: 'Поділитися', report: 'Поскаржитися', addComment: 'Коментар…', send: 'Надіслати', noComments: 'Будь першим 💬',
-  search: 'Пошук трендів', all: 'Усі', hot: 'ХІТ', faces: '{n} обличчя',
+  search: 'Пошук трендів', all: 'Усі', hot: 'ХІТ', isNew: 'НОВИЙ', free: 'БЕЗКОШТОВНО', faces: '{n} обличчя',
   facesTitle: 'Твої селфі', facesHint: 'Додай 1–3 чіткі селфі: обличчя в камеру, гарне світло, без окулярів.', addFace: 'Додати селфі', cutting: 'Шукаємо тебе на фото…',
   consent: 'Це я (або маю дозвіл). Усім на фото 18+ або батьки/опікун погодилися.', noPerson: 'Не знайшли людину — спробуй інше фото', del: 'Видалити',
   pickFaces: 'Хто в кадрі?', pickN: 'Обери {n}', customize: 'Додай своє', text: 'Текст', stickers: 'Стікери', addText: 'Смішний підпис…', top: 'Згори', center: 'Центр', bottom: 'Знизу',

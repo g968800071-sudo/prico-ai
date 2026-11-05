@@ -8,7 +8,7 @@ export default {
   tabHome: 'Inicio', tabCreate: 'Crear', tabReels: 'Reels', tabTop: 'Top', tabMe: 'Yo',
   forYou: 'Para ti', following: 'Siguiendo', challenge: 'Reto',
   wantSame: 'Ponme a mí', comments: 'Comentarios', share: 'Compartir', report: 'Denunciar', addComment: 'Añade un comentario…', send: 'Enviar', noComments: 'Sé el primero en comentar 💬',
-  search: 'Buscar tendencias', all: 'Todo', hot: 'TOP', isNew: 'NUEVO', faces: '{n} caras',
+  search: 'Buscar tendencias', all: 'Todo', free: 'GRATIS', hot: 'TOP', isNew: 'NUEVO', faces: '{n} caras',
   facesTitle: 'Tus selfies', facesHint: 'Añade 1–3 selfies claros: mirando a cámara, buena luz, sin gafas de sol.', addFace: 'Añadir selfie', cutting: 'Buscándote en la foto…',
   consent: 'Soy yo (o tengo permiso). Todos tienen 18+ o un tutor lo autorizó.', noPerson: 'No encontramos a nadie — prueba otra foto', del: 'Eliminar',
   pickFaces: '¿Quién sale?', pickN: 'Elige {n}', customize: 'Hazlo tuyo', text: 'Texto', stickers: 'Stickers', addText: 'Escribe algo gracioso…', top: 'Arriba', center: 'Centro', bottom: 'Abajo',

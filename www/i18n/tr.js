@@ -8,7 +8,7 @@ export default {
   tabHome: 'Ana sayfa', tabCreate: 'Oluştur', tabReels: 'Reels', tabTop: 'Top', tabMe: 'Ben',
   forYou: 'Senin için', following: 'Takip', challenge: 'Meydan okuma',
   wantSame: 'Beni koy', comments: 'Yorumlar', share: 'Paylaş', report: 'Bildir', addComment: 'Yorum ekle…', send: 'Gönder', noComments: 'İlk yorumu sen yap 💬',
-  search: 'Trend ara', all: 'Tümü', hot: 'POPÜLER', isNew: 'YENİ', faces: '{n} yüz',
+  search: 'Trend ara', all: 'Tümü', free: 'ÜCRETSİZ', hot: 'POPÜLER', isNew: 'YENİ', faces: '{n} yüz',
   facesTitle: 'Selfielerin', facesHint: '1–3 net selfie ekle: kameraya bak, iyi ışık, güneş gözlüğü yok.', addFace: 'Selfie ekle', cutting: 'Fotoğrafta seni buluyoruz…',
   consent: 'Bu benim (ya da iznim var). Herkes 18+ ya da veli onay verdi.', noPerson: 'Kişi bulunamadı — başka foto dene', del: 'Sil',
   pickFaces: 'Kimler var?', pickN: '{n} seç', customize: 'Kendine göre yap', text: 'Yazı', stickers: 'Çıkartmalar', addText: 'Komik bir söz…', top: 'Üst', center: 'Orta', bottom: 'Alt',

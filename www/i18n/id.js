@@ -24,7 +24,7 @@ export default {
   topTitle: 'Tantangan harian', endsIn: 'Berakhir dalam {t}', entries: '{n} peserta', joinCh: 'Ikut tantangan', leaders: 'Top hari ini',
   followers: 'Pengikut', followingN: 'Mengikuti', posts: 'Postingan', creations: 'Karyaku', editProfile: 'Edit profil', follow: 'Ikuti', unfollow: 'Mengikuti', bio: 'Bio',
   wallet: 'Saldo', freeVideos: '{n} video gratis', credits: '{n} kredit', plusActive: 'Plus aktif', getPlus: 'Dapatkan Plus', shopTitle: 'Tambah video',
-  plusDesc: '40 video per bulan · foto & reels tanpa batas · prioritas', perMonth: '/ bulan', buy: 'Beli', pack: '{n} video', best: 'PALING HEMAT',
+  plusDesc: "Tanpa watermark · HD · ~20 video AI/bulan · semua template", perMonth: '/ bulan', buy: 'Beli', pack: '{n} video', best: 'PALING HEMAT',
   demoPay: 'Mode demo — tidak ada uang sungguhan yang ditagih', bought: 'Beres! 🎉',
   settings: 'Pengaturan', language: 'Bahasa', auto: 'Otomatis (perangkat)', about: 'Tentang', safety: 'Aturan keamanan', version: 'Versi',
   safetyText: 'Tanpa ketelanjangan atau konten seksual. Tidak ada yang seksual, kekerasan, atau merendahkan yang melibatkan anak di bawah umur. Tanpa kebencian, pelecehan, atau penipuan dengan orang sungguhan. Unggah hanya wajah yang boleh kamu gunakan. Setiap hasil memiliki watermark PRICO AI. Postingan yang dilaporkan disembunyikan setelah ditinjau.',
@@ -63,4 +63,6 @@ export default {
   cd_christmas: "Natal", cd_diwali: "Diwali", cd_ramadan: "Ramadan", cd_lunar: "Imlek", cd_halloween: "Halloween", cd_wedding: "Pernikahan",
   cd_cake: "Pesta", cdt_birthday: "Selamat ulang tahun! 🎉", cdt_newyear: "Selamat Tahun Baru 2027! ✨", cdt_love: "Aku sayang kamu ❤️", cdt_christmas: "Selamat Natal! 🎄", cdt_diwali: "Selamat Diwali! 🪔",
   cdt_ramadan: "Ramadan Mubarak 🌙", cdt_lunar: "Gong Xi Fa Cai! 🧧", cdt_halloween: "Selamat Halloween! 🎃", cdt_wedding: "Pengantin baru! 💍", cdt_cake: "Ayo berpesta! 🥳",
+  // pricing
+  plusMonth: "Bulanan", plusYear: "Tahunan", perYear: "/ tahun", saveYear: "−44%", packsTitle: "Paket sekali beli", freeLimits: "Gratis: foto AI ber-watermark · 3 video AI untuk dicoba", trialCta: "Coba Plus 7 hari gratis", trialDesc: "Tanpa watermark, HD, 20 video AI. Lalu 5,99 €/bulan — batalkan kapan saja. Demo: kartu tidak ditagih.", trialStarted: "Uji coba aktif! Plus 7 hari 🎉", trialActive: "Uji coba Plus · sisa {d} hari — upgrade agar tetap", e_trial_used: "Uji coba gratis sudah digunakan",
 };

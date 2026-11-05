@@ -168,7 +168,9 @@ export async function render(opts) {
     }
     const ovPng = overlay ? await overlayPng(overlay, RW, RH) : null;
     if (ovPng) await fs.writeFile(path.join(dir, 'ov.png'), ovPng);
-    await fs.writeFile(path.join(dir, 'wm.png'), (await watermark(1.25)).png);
+    await fs.writeFile(path.join(dir, 'wm.png'), opts.noWm
+      ? await (await import('sharp')).default({ create: { width: 2, height: 2, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer()
+      : (await watermark(1.25)).png);
     // 5) assemble
     const tr = TRANS[niche] || TRANS.funny;
     // Join segments with beat-synced transitions in small groups (≤4 inputs per ffmpeg pass keeps RAM < 250 MB on free hosting).

@@ -66,7 +66,7 @@ function coverVf(info, W, H, c) {
   return `${pre}${zoom}split[a][b];[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=20:2,eq=brightness=-0.08[bg];[b]scale=${W}:${H}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1`;
 }
 
-export async function render(pr, onProgress = () => {}) {
+export async function render(pr, onProgress = () => {}, opts = {}) {
   const [W, H] = ASPECTS[pr.aspect];
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'edit-'));
   try {
@@ -146,7 +146,9 @@ export async function render(pr, onProgress = () => {}) {
       args.push('-itsoffset', pr.pip.start.toFixed(2), '-i', pf); pipIdx = idx++;
       pr.pip._w = pw; pr.pip._round = round;
     }
-    await fs.writeFile(path.join(dir, 'wm.png'), (await watermark(W / 720 * 1.15)).png); args.push('-i', path.join(dir, 'wm.png')); const wIdx = idx++;
+    await fs.writeFile(path.join(dir, 'wm.png'), opts.noWm
+      ? await (await import('sharp')).default({ create: { width: 2, height: 2, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer()
+      : (await watermark(W / 720 * 1.15)).png); args.push('-i', path.join(dir, 'wm.png')); const wIdx = idx++;
     let mIdx = -1; if (pr.music) { args.push('-stream_loop', '-1', '-i', await trackFile(pr.music.id)); mIdx = idx++; }
     const vIdx = [];
     for (const v of pr.voices) { args.push('-i', v.src.path); vIdx.push(idx++); }

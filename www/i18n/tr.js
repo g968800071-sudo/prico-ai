@@ -24,7 +24,7 @@ export default {
   topTitle: 'Günün meydan okuması', endsIn: '{t} sonra bitiyor', entries: '{n} katılım', joinCh: 'Katıl', leaders: 'Bugünün en iyileri',
   followers: 'Takipçi', followingN: 'Takip', posts: 'Gönderi', creations: 'Eserlerim', editProfile: 'Profili düzenle', follow: 'Takip et', unfollow: 'Takiptesin', bio: 'Biyografi',
   wallet: 'Bakiye', freeVideos: '{n} ücretsiz video', credits: '{n} kredi', plusActive: 'Plus aktif', getPlus: "Plus'a geç", shopTitle: 'Daha fazla video',
-  plusDesc: 'Ayda 40 video · sınırsız foto ve reels · öncelik', perMonth: '/ ay', buy: 'Satın al', pack: '{n} video', best: 'EN AVANTAJLI',
+  plusDesc: "Filigransız · HD · ayda ~20 AI video · tüm şablonlar", perMonth: '/ ay', buy: 'Satın al', pack: '{n} video', best: 'EN AVANTAJLI',
   demoPay: 'Demo modu — gerçek para çekilmez', bought: 'Tamam! 🎉',
   settings: 'Ayarlar', language: 'Dil', auto: 'Otomatik (cihaz)', about: 'Hakkında', safety: 'Güvenlik kuralları', version: 'Sürüm',
   safetyText: 'Çıplaklık veya cinsel içerik yok. Reşit olmayanları içeren cinsel, şiddet içeren veya aşağılayıcı hiçbir şey yok. Nefret, taciz veya gerçek kişilerle aldatma yok. Yalnızca kullanma hakkın olan yüzleri yükle. Her sonuçta PRICO AI filigranı bulunur. Bildirilen gönderiler incelemeden sonra gizlenir.',
@@ -63,4 +63,6 @@ export default {
   cd_christmas: "Noel", cd_diwali: "Diwali", cd_ramadan: "Ramazan", cd_lunar: "Ay Yeni Yılı", cd_halloween: "Cadılar Bayramı", cd_wedding: "Düğün",
   cd_cake: "Parti", cdt_birthday: "İyi ki doğdun! 🎉", cdt_newyear: "Mutlu yıllar 2027! ✨", cdt_love: "Seni seviyorum ❤️", cdt_christmas: "Mutlu Noeller! 🎄", cdt_diwali: "Mutlu Diwali! 🪔",
   cdt_ramadan: "Hayırlı Ramazanlar 🌙", cdt_lunar: "Ay Yeni Yılın kutlu olsun! 🧧", cdt_halloween: "Mutlu Cadılar Bayramı! 🎃", cdt_wedding: "Yeni evliler! 💍", cdt_cake: "Hadi parti! 🥳",
+  // pricing
+  plusMonth: "Aylık", plusYear: "Yıllık", perYear: "/ yıl", saveYear: "−44%", packsTitle: "Tek seferlik paketler", freeLimits: "Ücretsiz: filigranlı AI fotoğraflar · denemek için 3 AI video", trialCta: "7 gün ücretsiz Plus dene", trialDesc: "Filigransız, HD, 20 AI video. Sonra 5,99 €/ay — istediğin zaman iptal. Demo: kart çekilmez.", trialStarted: "Deneme açıldı! 7 gün Plus 🎉", trialActive: "Plus denemesi · {d} gün kaldı — korumak için yükselt", e_trial_used: "Ücretsiz denemeyi zaten kullandın",
 };

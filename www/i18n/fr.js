@@ -24,7 +24,7 @@ export default {
   topTitle: 'Défi du jour', endsIn: 'Fin dans {t}', entries: '{n} participations', joinCh: 'Participer', leaders: "Top aujourd'hui",
   followers: 'Abonnés', followingN: 'Abonnements', posts: 'Posts', creations: 'Créations', editProfile: 'Modifier le profil', follow: "S'abonner", unfollow: 'Abonné', bio: 'Bio',
   wallet: 'Solde', freeVideos: '{n} vidéos gratuites', credits: '{n} crédits', plusActive: 'Plus actif', getPlus: 'Passer à Plus', shopTitle: 'Plus de vidéos',
-  plusDesc: '40 vidéos par mois · photos & reels illimités · priorité', perMonth: '/ mois', buy: 'Acheter', pack: '{n} vidéos', best: 'MEILLEUR PRIX',
+  plusDesc: "Sans filigrane · HD · ~20 vidéos IA/mois · tous les modèles", perMonth: '/ mois', buy: 'Acheter', pack: '{n} vidéos', best: 'MEILLEUR PRIX',
   demoPay: "Mode démo — aucun argent réel n'est débité", bought: 'C’est fait ! 🎉',
   settings: 'Réglages', language: 'Langue', auto: 'Auto (appareil)', about: 'À propos', safety: 'Règles de sécurité', version: 'Version',
   safetyText: "Pas de nudité ni de contenu sexuel. Rien de sexuel, violent ou humiliant impliquant des mineurs. Pas de haine, de harcèlement ni de tromperie avec de vraies personnes. N'utilise que des visages que tu as le droit d'utiliser. Chaque résultat porte le filigrane PRICO AI. Les posts signalés sont masqués après examen.",
@@ -63,4 +63,6 @@ export default {
   cd_christmas: "Noël", cd_diwali: "Diwali", cd_ramadan: "Ramadan", cd_lunar: "Nouvel An lunaire", cd_halloween: "Halloween", cd_wedding: "Mariage",
   cd_cake: "Fête", cdt_birthday: "Joyeux anniversaire ! 🎉", cdt_newyear: "Bonne année 2027 ! ✨", cdt_love: "Je t’aime ❤️", cdt_christmas: "Joyeux Noël ! 🎄", cdt_diwali: "Joyeux Diwali ! 🪔",
   cdt_ramadan: "Ramadan Moubarak 🌙", cdt_lunar: "Joyeux Nouvel An lunaire ! 🧧", cdt_halloween: "Joyeux Halloween ! 🎃", cdt_wedding: "Jeunes mariés ! 💍", cdt_cake: "C’est la fête ! 🥳",
+  // pricing
+  plusMonth: "Mensuel", plusYear: "Annuel", perYear: "/ an", saveYear: "−44%", packsTitle: "Packs à l’unité", freeLimits: "Gratuit : photos IA avec filigrane · 3 vidéos IA à essayer", trialCta: "Essai Plus 7 jours gratuit", trialDesc: "Sans filigrane, HD, 20 vidéos IA. Puis 5,99 €/mois — résiliable. Démo : carte non débitée.", trialStarted: "Essai lancé ! Plus pendant 7 jours 🎉", trialActive: "Essai Plus · {d} j restants — passez en Plus pour le garder", e_trial_used: "Essai gratuit déjà utilisé",
 };

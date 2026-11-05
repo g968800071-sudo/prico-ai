@@ -575,3 +575,18 @@ textarea.field { height: 92px; padding: 14px 16px; resize: none; line-height: 1.
 .scGrid img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .scGrid span { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 4px 5px; font-size: 10.5px; font-weight: 700; color: #fff; background: linear-gradient(transparent, #000c); text-align: center; }
 .stRes { margin-bottom: 10px; }
+
+/* ---------- Pricing / trial ---------- */
+.trialCta { width: 100%; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: start; padding: 14px 16px; margin-bottom: 12px; border-radius: 18px; background: linear-gradient(135deg,#7c4dff33,#ff3d8b33); border: 1.5px solid #ff3d8b88; }
+.trialCta b { font-size: 15px; font-weight: 800; }
+.trialCta span { font-size: 12.5px; color: var(--mut); line-height: 1.35; }
+.trialOn { padding: 10px 14px; margin-bottom: 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); font-size: 13px; font-weight: 650; text-align: center; }
+.plusOpts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.plusOpt { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px 12px; border-radius: 16px; background: var(--card2, #16161f); border: 1.5px solid var(--line); text-align: start; }
+.plusOpt .poT { font-size: 12.5px; font-weight: 700; color: var(--mut); }
+.plusOpt .price { font-size: 22px; font-weight: 850; letter-spacing: -0.02em; }
+.plusOpt.bestY { border-color: #ff3d8b99; background: linear-gradient(160deg,#7c4dff22,#ff3d8b18); }
+.plusOpt .badge { position: absolute; top: -8px; right: 10px; }
+.plusOpt:disabled { opacity: 0.55; }
+.plan.on { outline: 2px solid #7c4dff88; }
+.freeNote { margin-top: 14px; text-align: center; line-height: 1.4; }

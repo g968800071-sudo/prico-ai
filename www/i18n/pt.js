@@ -24,7 +24,7 @@ export default {
   topTitle: 'Desafio do dia', endsIn: 'Termina em {t}', entries: '{n} participantes', joinCh: 'Participar', leaders: 'Top de hoje',
   followers: 'Seguidores', followingN: 'Seguindo', posts: 'Posts', creations: 'Criações', editProfile: 'Editar perfil', follow: 'Seguir', unfollow: 'Seguindo', bio: 'Bio',
   wallet: 'Saldo', freeVideos: '{n} vídeos grátis', credits: '{n} créditos', plusActive: 'Plus ativo', getPlus: 'Assinar Plus', shopTitle: 'Mais vídeos',
-  plusDesc: '40 vídeos por mês · fotos e reels ilimitados · prioridade', perMonth: '/ mês', buy: 'Comprar', pack: '{n} vídeos', best: 'MELHOR PREÇO',
+  plusDesc: "Sem marca d’água · HD · ~20 vídeos IA/mês · todos os modelos", perMonth: '/ mês', buy: 'Comprar', pack: '{n} vídeos', best: 'MELHOR PREÇO',
   demoPay: 'Modo demo — nenhum dinheiro é cobrado', bought: 'Pronto! 🎉',
   settings: 'Configurações', language: 'Idioma', auto: 'Automático (aparelho)', about: 'Sobre', safety: 'Regras de segurança', version: 'Versão',
   safetyText: 'Sem nudez ou conteúdo sexual. Nada sexual, violento ou humilhante envolvendo menores. Sem ódio, assédio ou enganação com pessoas reais. Envie só rostos que você tem direito de usar. Todo resultado tem a marca d’água PRICO AI. Posts denunciados são ocultados após revisão.',
@@ -63,4 +63,6 @@ export default {
   cd_christmas: "Natal", cd_diwali: "Diwali", cd_ramadan: "Ramadã", cd_lunar: "Ano Novo Lunar", cd_halloween: "Halloween", cd_wedding: "Casamento",
   cd_cake: "Festa", cdt_birthday: "Feliz aniversário! 🎉", cdt_newyear: "Feliz Ano Novo 2027! ✨", cdt_love: "Eu te amo ❤️", cdt_christmas: "Feliz Natal! 🎄", cdt_diwali: "Feliz Diwali! 🪔",
   cdt_ramadan: "Ramadã Mubarak 🌙", cdt_lunar: "Feliz Ano Novo Lunar! 🧧", cdt_halloween: "Feliz Halloween! 🎃", cdt_wedding: "Recém-casados! 💍", cdt_cake: "Bora festejar! 🥳",
+  // pricing
+  plusMonth: "Mensal", plusYear: "Anual", perYear: "/ ano", saveYear: "−44%", packsTitle: "Pacotes avulsos", freeLimits: "Grátis: fotos IA com marca d’água · 3 vídeos IA para testar", trialCta: "Teste Plus 7 dias grátis", trialDesc: "Sem marca d’água, HD, 20 vídeos IA. Depois 5,99 €/mês — cancele quando quiser. Demo: cartão não cobrado.", trialStarted: "Teste ativo! Plus por 7 dias 🎉", trialActive: "Teste Plus · {d} dias restantes — assine para manter", e_trial_used: "Você já usou o teste grátis",
 };

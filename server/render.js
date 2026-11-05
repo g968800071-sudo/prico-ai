@@ -223,8 +223,10 @@ export async function demoPhoto(tpl, faces, lang = 'en', opts = {}) {
     layers.push({ input: t.png, left: Math.round((W - t.w) / 2), top: Math.round(H * (face.cut ? 0.08 : 0.80) - (face.cut ? 0 : t.h / 2)) });
   }
   if (opts.overlay) { const o = await overlayPng(opts.overlay, W, H); if (o) layers.push({ input: o, left: 0, top: 0 }); }
-  const wm = await watermark(1.2);
-  layers.push({ input: wm.png, left: W - wm.w - 24, top: H - wm.h - 28 });
+  if (!opts.noWm) {
+    const wm = await watermark(1.2);
+    layers.push({ input: wm.png, left: W - wm.w - 24, top: H - wm.h - 28 });
+  }
   // clip layers that overflow the canvas
   const clipped = [];
   for (const l of layers) {
@@ -246,7 +248,9 @@ export async function demoPhoto(tpl, faces, lang = 'en', opts = {}) {
   }
   const base = sharp(await bg(tpl.scene));
   if (opts.raw) return base.composite(clipped.slice(0, 1)).png().toBuffer();
-  return base.composite(clipped).jpeg({ quality: 86, mozjpeg: true }).toBuffer();
+  let out = await base.composite(clipped).jpeg({ quality: opts.hd ? 92 : 86, mozjpeg: true }).toBuffer();
+  if (opts.hd) out = await sharp(out).resize(1080, 1920, { fit: 'cover', kernel: 'lanczos3' }).jpeg({ quality: 92, mozjpeg: true }).toBuffer();
+  return out;
 }
 
 // Text + sticker overlay layer (user editor). ov = { text, pos: top|center|bottom, color, stickers: [{ c: '1f602', x, y, s, r }] }
@@ -377,7 +381,10 @@ export async function demoVideo(tpl, faces, lang = 'en', opts = {}) {
     const pk = tpl.particles || { birthday: 'confetti', newyear: 'snow', love: 'hearts', wedding: 'hearts', stadium: 'confetti', christmas: 'snow', snowglobe: 'snow', carnival: 'confetti', kpop: 'confetti', cake: 'confetti', lunar: 'confetti', valentine: 'hearts' }[tpl.scene] || 'sparkle';
     await fs.writeFile(path.join(dir, 'p.png'), await particles(pk, VW, VH, 7));
     await fs.writeFile(path.join(dir, 'shade.png'), await sharp(shade(VW, VH)).png().toBuffer());
-    await fs.writeFile(path.join(dir, 'wm.png'), (await watermark(1)).png);
+    // Transparent 1×1 when Plus (noWm) so the filter-graph indices stay stable.
+    await fs.writeFile(path.join(dir, 'wm.png'), opts.noWm
+      ? await sharp({ create: { width: 2, height: 2, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer()
+      : (await watermark(1)).png);
     let title = tpl.title ? loc(tpl.title, lang) : '';
     if (tpl.motion === 'shock' && !tpl.title) title = { ru: 'ЧТООО?!', uk: 'ЩООО?!', es: '¿¡QUÉEE?!', pt: 'QUÊEE?!', de: 'WAAAS?!', fr: 'QUOIII ?!', tr: 'NEEE?!', ar: 'ماذاااا؟!', hi: 'क्याआआ?!', id: 'APAAA?!' }[lang] || 'WHAAT?!';
     const ovPng = opts.overlay ? await overlayPng(opts.overlay, VW, VH) : null;
@@ -448,21 +455,32 @@ export async function demoVideo(tpl, faces, lang = 'en', opts = {}) {
 }
 
 // Watermark + normalise an externally generated image (real AI provider).
-export async function brandImage(buf) {
-  const img = sharp(buf).rotate().resize(W, H, { fit: 'cover' });
-  const wm = await watermark(1.2);
-  return img.composite([{ input: wm.png, left: W - wm.w - 24, top: H - wm.h - 28 }]).jpeg({ quality: 88 }).toBuffer();
+export async function brandImage(buf, opts = {}) {
+  const target = opts.hd ? { w: 1080, h: 1920 } : { w: W, h: H };
+  let img = sharp(buf).rotate().resize(target.w, target.h, { fit: 'cover' });
+  if (!opts.noWm) {
+    const wm = await watermark(opts.hd ? 1.6 : 1.2);
+    img = img.composite([{ input: wm.png, left: target.w - wm.w - 24, top: target.h - wm.h - 28 }]);
+  }
+  return img.jpeg({ quality: opts.hd ? 92 : 88 }).toBuffer();
 }
 // Watermark an externally generated video (real AI provider).
-export async function brandVideo(buf) {
+export async function brandVideo(buf, opts = {}) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'prico-'));
   try {
     await fs.writeFile(path.join(dir, 'in.mp4'), buf);
-    await fs.writeFile(path.join(dir, 'wm.png'), (await watermark(1)).png);
     const out = path.join(dir, 'out.mp4');
-    await run(['-y', '-loglevel', 'error', '-i', path.join(dir, 'in.mp4'), '-i', path.join(dir, 'wm.png'), '-filter_complex',
-      `[0:v]scale=${VW}:${VH}:force_original_aspect_ratio=increase,crop=${VW}:${VH}[b];[b][1:v]overlay=W-w-18:H-h-22,format=yuv420p[v]`,
-      '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '24', '-c:a', 'aac', '-movflags', '+faststart', out]);
+    const tw = opts.hd ? 720 : VW, th = opts.hd ? 1280 : VH;
+    if (opts.noWm) {
+      await run(['-y', '-loglevel', 'error', '-i', path.join(dir, 'in.mp4'), '-vf',
+        `scale=${tw}:${th}:force_original_aspect_ratio=increase,crop=${tw}:${th},format=yuv420p`,
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', out]);
+    } else {
+      await fs.writeFile(path.join(dir, 'wm.png'), (await watermark(1)).png);
+      await run(['-y', '-loglevel', 'error', '-i', path.join(dir, 'in.mp4'), '-i', path.join(dir, 'wm.png'), '-filter_complex',
+        `[0:v]scale=${tw}:${th}:force_original_aspect_ratio=increase,crop=${tw}:${th}[b];[b][1:v]overlay=W-w-18:H-h-22,format=yuv420p[v]`,
+        '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '24', '-c:a', 'aac', '-movflags', '+faststart', out]);
+    }
     const mp4 = await fs.readFile(out);
     await run(['-y', '-loglevel', 'error', '-ss', '1', '-i', out, '-frames:v', '1', '-q:v', '4', path.join(dir, 'p.jpg')]);
     return { mp4, poster: await fs.readFile(path.join(dir, 'p.jpg')) };

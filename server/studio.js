@@ -9,7 +9,8 @@ export const BG_SCENES = ['beach', 'paris', 'nyc', 'tokyo', 'dubai', 'space', 'm
 export const CARDS = { birthday: 'birthday', newyear: 'newyear', love: 'love', christmas: 'christmas', diwali: 'diwali', ramadan: 'ramadan', lunar: 'lunar', halloween: 'halloween', wedding: 'wedding', cake: 'cake' };
 const MAXPX = 2048;
 
-async function mark(img) {
+async function mark(img, opts = {}) {
+  if (opts.noWm) return sharp(img).jpeg({ quality: 92, mozjpeg: true }).toBuffer();
   const m = await sharp(img).metadata();
   const wm = await watermark(Math.max(0.8, Math.min(2.2, m.width / 600)));
   return sharp(img).composite([{ input: wm.png, left: Math.max(0, m.width - wm.w - Math.round(m.width * .03)), top: Math.max(0, m.height - wm.h - Math.round(m.width * .035)) }]).jpeg({ quality: 92, mozjpeg: true }).toBuffer();
@@ -43,19 +44,19 @@ async function enhanceFal(buf) {
   return Buffer.from(await (await fetch(url)).arrayBuffer());
 }
 export const enhanceMode = () => ((process.env.AI_PROVIDER || '').toLowerCase() === 'fal' && process.env.FAL_KEY ? 'ai' : 'free');
-export async function enhance(buf) {
+export async function enhance(buf, opts = {}) {
   let out;
   if (enhanceMode() === 'ai') { try { out = await enhanceFal(buf); } catch (e) { console.warn('[studio]', e.message); } }
   out ||= await enhanceFree(buf);
-  return mark(out);
+  return mark(out, opts);
 }
 // Background swap / "you anywhere": the person cut-out (made on-device) placed into a scene.
-export async function bgSwap(cut, scene, lang) {
+export async function bgSwap(cut, scene, lang, opts = {}) {
   if (!BG_SCENES.includes(scene)) throw Object.assign(new Error('bad_scene'), { code: 400 });
-  return demoPhoto({ scene, filter: 'clean' }, [{ img: cut, cut }], lang);
+  return demoPhoto({ scene, filter: 'clean' }, [{ img: cut, cut }], lang, opts);
 }
 // Greeting card with your photo and your own text.
-export async function card(cut, img, kind, text, lang) {
+export async function card(cut, img, kind, text, lang, opts = {}) {
   const scene = CARDS[kind]; if (!scene) throw Object.assign(new Error('bad_scene'), { code: 400 });
-  return demoPhoto({ scene, filter: 'clean', title: { en: text } }, [{ img: img || cut, cut }], lang);
+  return demoPhoto({ scene, filter: 'clean', title: { en: text } }, [{ img: img || cut, cut }], lang, opts);
 }

@@ -41,12 +41,12 @@ export async function photo(tpl, faces, opts) {
     const t = await textPng(loc(tpl.title, opts.lang), 64);
     img = await sharp(img).resize(720, 1280, { fit: 'cover' }).composite([{ input: t.png, left: Math.round((720 - t.w) / 2), top: 120 }]).jpeg().toBuffer();
   }
-  return { mime: 'image/jpeg', data: await brandImage(img) };
+  return { mime: 'image/jpeg', data: await brandImage(img, { noWm: !!opts.noWm, hd: !!opts.hd }) };
 }
 export async function video(tpl, faces, opts) {
   const s = await still(tpl, faces, opts.prompt);
   const r = await falRun(VIDEO_MODEL(), { prompt: [tpl.prompt, opts.prompt].filter(Boolean).join(', '), image_url: dataUri(s), duration: '5', aspect_ratio: '9:16' }, 600000);
   const url = r.video?.url; if (!url) throw new Error('no video');
-  const v = await brandVideo(await dl(url));
+  const v = await brandVideo(await dl(url), { noWm: !!opts.noWm, hd: !!opts.hd });
   return { mime: 'video/mp4', data: v.mp4, poster: v.poster };
 }

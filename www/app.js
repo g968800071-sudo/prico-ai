@@ -203,17 +203,54 @@ addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInsta
 // ---------- shop (demo payments) ----------
 export async function openShop() {
   await needAuth();
-  const body = h('<div><div class="sk" style="height:160px;border-radius:22px"></div></div>');
+  const body = h('<div><div class="sk" style="height:220px;border-radius:22px"></div></div>');
   const sh = sheet({ title: t('shopTitle'), body });
   try {
     const r = await api('/api/shop');
-    const sub = r.products.find(p => p.kind === 'sub'); const packs = r.products.filter(p => p.kind === 'pack');
+    const month = r.products.find(p => p.id === 'plus_month');
+    const year = r.products.find(p => p.id === 'plus_year');
+    const trial = r.products.find(p => p.kind === 'trial');
+    const packs = r.products.filter(p => p.kind === 'pack');
+    const w = r.wallet || S.me?.wallet;
     const money = p => new Intl.NumberFormat(lang(), { style: 'currency', currency: p.currency }).format(p.price);
-    body.innerHTML = `<div class="plan"><span class="badge hot best">${esc(t('best'))}</span><div class="row"><span style="font-size:30px">👑</span><div class="sp"><h2>${esc(t('plusName'))}</h2><div class="mut sm">${esc(t('plusDesc'))}</div></div></div>
-      <div class="row" style="margin-top:12px"><span class="price">${money(sub)}</span><span class="mut">${esc(t('perMonth'))}</span><span class="sp"></span><button class="btn pri sm" data-p="${sub.id}">${esc(t(r.wallet && r.wallet.plus ? 'plusActive' : 'getPlus'))}</button></div></div>
+    const buy = async (id, btn) => {
+      if (btn) btn.disabled = true;
+      try {
+        const x = await api('/api/shop/buy', { body: { productId: id } });
+        S.me.wallet = x.wallet; updWallet(); confetti();
+        toast(id === 'plus_trial' ? t('trialStarted') : t('bought'));
+        sh.close(); if (S.route === 'me') drawMe();
+      } catch (e) { fail(e); if (btn) btn.disabled = false; }
+    };
+    const trialOk = trial && w && !w.plus && !w.trialUsed;
+    const trialBanner = trialOk
+      ? `<button class="trialCta" data-p="${trial.id}"><b>🎁 ${esc(t('trialCta'))}</b><span>${esc(t('trialDesc'))}</span></button>`
+      : (w?.trial ? `<div class="trialOn">⏳ ${esc(t('trialActive', { d: Math.max(1, Math.ceil((w.plusUntil - Date.now()) / 86400000)) }))}</div>` : '');
+    body.innerHTML = `
+      ${trialBanner}
+      <div class="plan ${w?.plus && !w?.trial ? 'on' : ''}">
+        <span class="badge hot best">${esc(t('best'))}</span>
+        <div class="row"><span style="font-size:30px">👑</span><div class="sp"><h2>${esc(t('plusName'))}</h2><div class="mut sm">${esc(t('plusDesc'))}</div></div></div>
+        <div class="plusOpts">
+          <button class="plusOpt" data-p="${month.id}" ${w?.plus && !w?.trial ? 'disabled' : ''}>
+            <div class="poT">${esc(t('plusMonth'))}</div>
+            <div class="price">${money(month)}</div>
+            <div class="mut xs">${esc(t('perMonth'))}</div>
+          </button>
+          <button class="plusOpt bestY" data-p="${year.id}" ${w?.plus && !w?.trial ? 'disabled' : ''}>
+            <span class="badge hot">${esc(t('saveYear'))}</span>
+            <div class="poT">${esc(t('plusYear'))}</div>
+            <div class="price">${money(year)}</div>
+            <div class="mut xs">${esc(t('perYear'))}</div>
+          </button>
+        </div>
+        ${w?.plus && !w?.trial ? `<div class="mut sm" style="margin-top:10px;text-align:center">✓ ${esc(t('plusActive'))}</div>` : ''}
+      </div>
+      <div class="lbl" style="margin:14px 0 8px">${esc(t('packsTitle'))}</div>
       ${packs.map(p => `<button class="pack" data-p="${p.id}"><span style="font-size:24px">🎬</span><span class="sp" style="font-weight:750">${esc(t('pack', { n: p.credits }))}</span><span class="price" style="font-size:18px">${money(p)}</span></button>`).join('')}
-      ${r.mode === 'demo' ? `<div class="mut xs" style="text-align:center;margin-top:14px">🧪 ${esc(t('demoPay'))}</div>` : ''}`;
-    $$('[data-p]', body).forEach(b => b.onclick = async () => { try { const x = await api('/api/shop/buy', { body: { productId: b.dataset.p } }); S.me.wallet = x.wallet; updWallet(); confetti(); toast(t('bought')); sh.close(); if (S.route === 'me') drawMe(); } catch (e) { fail(e); } });
+      <div class="freeNote mut xs">${esc(t('freeLimits'))}</div>
+      ${r.mode === 'demo' ? `<div class="mut xs" style="text-align:center;margin-top:10px">🧪 ${esc(t('demoPay'))}</div>` : ''}`;
+    $$('[data-p]', body).forEach(b => b.onclick = () => buy(b.dataset.p, b));
   } catch (e) { fail(e); }
 }
 

@@ -31,7 +31,7 @@ const WWW = path.join(ROOT, 'www');
 const PORT = process.env.PORT || 8080;
 const PREVIEW_V = 3;
 const PUBLIC_URL = process.env.PUBLIC_URL || 'https://prico-ai.onrender.com';
-const FREE_VIDEOS = 3, FREE_PHOTOS_DAY = 20, PLUS_VIDEOS_MONTH = 40, FREE_REELS_DAY = 10;
+const FREE_VIDEOS = 3, FREE_PHOTOS_DAY = 20, PLUS_VIDEOS_MONTH = 20, FREE_REELS_DAY = 10;
 
 // ---------- helpers ----------
 const now = () => Date.now();
@@ -80,12 +80,14 @@ const OWNER_EMAILS = new Set(String(process.env.OWNER_EMAILS ?? 'g968800071@gmai
 const isOwner = u => !!(u && u.email && OWNER_EMAILS.has(String(u.email).toLowerCase()));
 function wallet(u) {
   if (isOwner(u)) { if (u.photoDay !== today()) { u.photoDay = today(); u.photosToday = 0; u.reelsToday = 0; }
-    return { freeVideos: u.freeVideos, credits: u.credits, plus: true, unlimited: true, owner: true, plusUntil: 4102444800000, plusLeft: 9999, photosLeft: 9999, reelsLeft: 9999 }; }
-  const plus = u.plus && u.plus.until > now();
+    return { freeVideos: u.freeVideos, credits: u.credits, plus: true, unlimited: true, owner: true, trial: false, trialUsed: !!u.trialUsed, noWm: true, hd: true, plusUntil: 4102444800000, plusLeft: 9999, photosLeft: 9999, reelsLeft: 9999 }; }
+  const plus = !!(u.plus && u.plus.until > now());
   if (u.plus?.month !== month()) u.plus = { ...(u.plus || {}), month: month(), used: 0 };
   if (u.photoDay !== today()) { u.photoDay = today(); u.photosToday = 0; u.reelsToday = 0; }
-  return { freeVideos: u.freeVideos, credits: u.credits, plus, plusUntil: plus ? u.plus.until : null, plusLeft: plus ? Math.max(0, PLUS_VIDEOS_MONTH - (u.plus.used || 0)) : 0,
-    photosLeft: plus ? 999 : Math.max(0, FREE_PHOTOS_DAY - (u.photosToday || 0)), reelsLeft: plus ? 999 : Math.max(0, FREE_REELS_DAY - (u.reelsToday || 0)) };
+  return { freeVideos: u.freeVideos, credits: u.credits, plus, trial: plus && !!u.plus?.trial, trialUsed: !!u.trialUsed,
+    plusUntil: plus ? u.plus.until : null, plusLeft: plus ? Math.max(0, PLUS_VIDEOS_MONTH - (u.plus.used || 0)) : 0,
+    photosLeft: plus ? 999 : Math.max(0, FREE_PHOTOS_DAY - (u.photosToday || 0)), reelsLeft: plus ? 999 : Math.max(0, FREE_REELS_DAY - (u.reelsToday || 0)),
+    noWm: plus, hd: plus };
 }
 function me(u) { return { ...userPub(u, u), email: u.email, lang: u.lang || 'en', wallet: wallet(u), coins: isOwner(u) ? 999999 : (u.coins || 0), diamonds: u.diamonds || 0, faces: facesOf(u).map(faceOut), onboarded: !!u.onboarded }; }
 const facesOf = u => (u.faces || []).map(f => db.faces[f]).filter(Boolean);
@@ -129,7 +131,7 @@ async function runJob(j) {
   for (const fid of j.faces) { const f = db.faces[fid]; if (!f) continue; faces.push({ img: (await store.getBlob(f.img))?.data, cut: f.cut ? (await store.getBlob(f.cut))?.data : null }); }
   if (!faces.length || !faces[0].img) throw new Error('no faces');
   const prov = providers.current();
-  const o = { lang: u.lang || 'en', prompt: j.prompt, overlay: j.overlay };
+  const w = wallet(u); const o = { lang: u.lang || 'en', prompt: j.prompt, overlay: j.overlay, noWm: !!w.noWm, hd: !!w.hd };
   const r = t.kind === 'video' ? await prov.video(t, faces, o) : await prov.photo(t, faces, o);
   const blob = await store.putBlob(r.data, r.mime);
   const poster = r.poster ? await store.putBlob(r.poster, 'image/jpeg') : null;
@@ -143,7 +145,7 @@ async function runReel(j) {
   for (const uid of j.uploads) { const up = uploads.get(uid); if (up && up.uid === u.id) items.push({ kind: up.kind, path: up.path }); }
   const faces = [];
   if (!items.length) for (const f of facesOf(u).slice(0, 3)) faces.push({ img: (await store.getBlob(f.img))?.data, cut: f.cut ? (await store.getBlob(f.cut))?.data : null });
-  const r = await reels.render({ items, faces, niche: j.niche, idea: j.prompt, musicId: j.musicId, lang: u.lang || 'en', overlay: j.overlay, subtitles: j.subtitles !== false, lines: j.lines });
+  const rw = wallet(u); const r = await reels.render({ items, faces, niche: j.niche, idea: j.prompt, musicId: j.musicId, lang: u.lang || 'en', overlay: j.overlay, subtitles: j.subtitles !== false, lines: j.lines, noWm: !!rw.noWm, hd: !!rw.hd });
   const blob = await store.putBlob(r.mp4, 'video/mp4'); const poster = await store.putBlob(r.poster, 'image/jpeg');
   const mid = id(10);
   db.media[mid] = { id: mid, uid: u.id, type: 'video', reel: true, blob, poster, tpl: null, niche: j.niche, prompt: j.prompt || '', createdAt: now(), duration: r.duration, captions: r.captions };
@@ -151,7 +153,7 @@ async function runReel(j) {
 }
 async function runEdit(j) {
   const u = db.users[j.uid];
-  const r = await editor.render(j.project, x => { j.prog = x; });
+  const r = await editor.render(j.project, x => { j.prog = x; }, { noWm: !!wallet(u).noWm, hd: !!wallet(u).hd });
   const blob = await store.putBlob(r.mp4, 'video/mp4'); const poster = await store.putBlob(r.poster, 'image/jpeg');
   const mid = id(10);
   db.media[mid] = { id: mid, uid: u.id, type: 'video', edit: true, cam: !!j.cam, blob, poster, tpl: null, prompt: '', createdAt: now(), duration: r.duration };
@@ -370,7 +372,7 @@ r('POST', '/api/edit', async (req) => {
 // Camera photo (effects applied on-device) → branded media item.
 r('POST', '/api/media/photo', async (req) => {
   const u = need(req); const buf = await readBody(req, 10e6);
-  const img = await brandImage(buf).catch(() => bad('bad_image'));
+  const img = await brandImage(buf, { noWm: !!wallet(u).noWm }).catch(() => bad('bad_image'));
   const blob = await store.putBlob(img, 'image/jpeg'); const mid = id(10);
   db.media[mid] = { id: mid, uid: u.id, type: 'photo', cam: true, blob, poster: blob, tpl: null, prompt: '', createdAt: now() };
   save(); return { media: mediaOut(db.media[mid]) };
@@ -394,9 +396,9 @@ r('POST', '/api/studio', async (req) => {
   studioBusy++;
   let out;
   try {
-    if (b.op === 'enhance') { if (!img) bad('bad_image'); out = await studio.enhance(img); }
-    else if (b.op === 'bg') { if (!cut) bad('no_face'); out = await studio.bgSwap(cut, String(b.scene), u.lang); }
-    else if (b.op === 'card') { if (!cut && !img) bad('bad_image'); out = await studio.card(cut, img, String(b.kind), text || ' ', u.lang); }
+    if (b.op === 'enhance') { if (!img) bad('bad_image'); out = await studio.enhance(img, { noWm: !!wallet(u).noWm }); }
+    else if (b.op === 'bg') { if (!cut) bad('no_face'); out = await studio.bgSwap(cut, String(b.scene), u.lang, { noWm: !!wallet(u).noWm, hd: !!wallet(u).hd }); }
+    else if (b.op === 'card') { if (!cut && !img) bad('bad_image'); out = await studio.card(cut, img, String(b.kind), text || ' ', u.lang, { noWm: !!wallet(u).noWm, hd: !!wallet(u).hd }); }
     else bad('bad_request');
   } catch (e) { if (e instanceof HttpError) throw e; console.warn('[studio]', e.message); bad(e.message === 'bad_scene' ? 'bad_scene' : 'bad_image'); }
   finally { studioBusy--; }
@@ -500,8 +502,13 @@ r('GET', '/api/challenge', async (req) => {
 r('GET', '/api/shop', async (req) => ({ mode: payments.mode(), products: payments.PRODUCTS, wallet: authUser(req) ? wallet(authUser(req)) : null }));
 r('POST', '/api/shop/buy', async (req) => {
   const u = need(req); const { productId } = await json(req);
-  const out = await payments.buy(u, productId, { publicUrl: PUBLIC_URL });
-  save(); return { ...out, wallet: wallet(u) };
+  try {
+    const out = await payments.buy(u, productId, { publicUrl: PUBLIC_URL });
+    save(); return { ...out, wallet: wallet(u) };
+  } catch (e) {
+    if (e instanceof HttpError) throw e;
+    bad(e.message || 'bad_product', typeof e.code === 'number' ? e.code : 400);
+  }
 });
 
 // Share page with Open Graph tags (nice link previews in Telegram/WhatsApp/Instagram)

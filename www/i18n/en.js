@@ -24,7 +24,7 @@ export default {
   topTitle: 'Daily challenge', endsIn: 'Ends in {t}', entries: '{n} entries', joinCh: 'Join challenge', leaders: 'Top today',
   followers: 'Followers', followingN: 'Following', posts: 'Posts', creations: 'Creations', editProfile: 'Edit profile', follow: 'Follow', unfollow: 'Following', bio: 'Bio',
   wallet: 'Balance', freeVideos: '{n} free videos', credits: '{n} credits', plusActive: 'Plus active', getPlus: 'Get Plus', shopTitle: 'Get more videos',
-  plusName: 'PRICO AI Plus', plusDesc: '40 videos a month · unlimited photos & reels · priority', perMonth: '/ month', buy: 'Buy', pack: '{n} videos', best: 'BEST VALUE',
+  plusName: 'PRICO AI Plus', plusDesc: "No watermark · HD · ~20 AI videos/month · all templates", perMonth: '/ month', buy: 'Buy', pack: '{n} videos', best: 'BEST VALUE',
   demoPay: 'Demo mode — no real money is charged', bought: 'Done! Enjoy 🎉',
   settings: 'Settings', language: 'Language', auto: 'Auto (device)', about: 'About', safety: 'Safety rules', version: 'Version',
   safetyText: 'No nudity or sexual content. Nothing sexual, violent or humiliating involving minors. No hate, harassment or real-person deception. Only upload faces you have the right to use. Every result carries a PRICO AI watermark. Reported posts are hidden after review.',
@@ -63,4 +63,6 @@ export default {
   cd_christmas: "Christmas", cd_diwali: "Diwali", cd_ramadan: "Ramadan", cd_lunar: "Lunar New Year", cd_halloween: "Halloween", cd_wedding: "Wedding",
   cd_cake: "Party", cdt_birthday: "Happy birthday! 🎉", cdt_newyear: "Happy New Year 2027! ✨", cdt_love: "I love you ❤️", cdt_christmas: "Merry Christmas! 🎄", cdt_diwali: "Happy Diwali! 🪔",
   cdt_ramadan: "Ramadan Mubarak 🌙", cdt_lunar: "Happy Lunar New Year! 🧧", cdt_halloween: "Happy Halloween! 🎃", cdt_wedding: "Just married! 💍", cdt_cake: "Let’s party! 🥳",
+  // pricing
+  plusMonth: "Monthly", plusYear: "Yearly", perYear: "/ year", saveYear: "SAVE 44%", packsTitle: "One-time packs", freeLimits: "Free: AI photos with watermark · 3 AI videos to try", trialCta: "Start 7-day free Plus trial", trialDesc: "No watermark, HD, 20 AI videos. Then 5.99 €/month — cancel anytime. Demo: no card charged.", trialStarted: "Trial on! Enjoy Plus for 7 days 🎉", trialActive: "Plus trial · {d} days left — upgrade to keep it", e_trial_used: "You already used your free trial",
 };

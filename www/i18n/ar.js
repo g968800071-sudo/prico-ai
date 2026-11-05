@@ -24,7 +24,7 @@ export default {
   topTitle: 'تحدي اليوم', endsIn: 'ينتهي خلال {t}', entries: '{n} مشاركة', joinCh: 'شارك', leaders: 'الأفضل اليوم',
   followers: 'متابِعون', followingN: 'يتابع', posts: 'منشورات', creations: 'أعمالي', editProfile: 'تعديل الملف', follow: 'متابعة', unfollow: 'تتابعه', bio: 'نبذة',
   wallet: 'الرصيد', freeVideos: '{n} فيديوهات مجانية', credits: '{n} رصيد', plusActive: 'Plus مفعّل', getPlus: 'احصل على Plus', shopTitle: 'فيديوهات أكثر',
-  plusDesc: '40 فيديو شهريًا · صور وريلز بلا حدود · أولوية', perMonth: '/ شهر', buy: 'شراء', pack: '{n} فيديو', best: 'أفضل قيمة',
+  plusDesc: "بدون علامة مائية · HD · نحو 20 فيديو AI/شهر · كل القوالب", perMonth: '/ شهر', buy: 'شراء', pack: '{n} فيديو', best: 'أفضل قيمة',
   demoPay: 'وضع تجريبي — لا يتم خصم أموال حقيقية', bought: 'تم! 🎉',
   settings: 'الإعدادات', language: 'اللغة', auto: 'تلقائي (الجهاز)', about: 'حول', safety: 'قواعد الأمان', version: 'الإصدار',
   safetyText: 'لا عُري ولا محتوى جنسي. لا شيء جنسي أو عنيف أو مهين يخص القاصرين. لا كراهية ولا تحرش ولا خداع بأشخاص حقيقيين. ارفع فقط الوجوه التي يحق لك استخدامها. كل نتيجة تحمل علامة PRICO AI المائية. تُخفى المنشورات المبلّغ عنها بعد المراجعة.',
@@ -63,4 +63,6 @@ export default {
   cd_christmas: "عيد الميلاد", cd_diwali: "ديوالي", cd_ramadan: "رمضان", cd_lunar: "السنة القمرية", cd_halloween: "هالوين", cd_wedding: "زفاف",
   cd_cake: "حفلة", cdt_birthday: "عيد ميلاد سعيد! 🎉", cdt_newyear: "سنة 2027 سعيدة! ✨", cdt_love: "أحبك ❤️", cdt_christmas: "عيد ميلاد مجيد! 🎄", cdt_diwali: "ديوالي سعيد! 🪔",
   cdt_ramadan: "رمضان مبارك 🌙", cdt_lunar: "سنة قمرية سعيدة! 🧧", cdt_halloween: "هالوين سعيد! 🎃", cdt_wedding: "عروسان جديدان! 💍", cdt_cake: "هيا نحتفل! 🥳",
+  // pricing
+  plusMonth: "شهري", plusYear: "سنوي", perYear: "/ سنة", saveYear: "−44%", packsTitle: "باقات لمرة واحدة", freeLimits: "مجاني: صور AI بعلامة مائية · 3 فيديوهات AI للتجربة", trialCta: "جرّب Plus 7 أيام مجانًا", trialDesc: "بدون علامة مائية، HD، 20 فيديو AI. ثم 5.99 €/شهر — إلغاء في أي وقت. تجريبي: لا يُخصم من البطاقة.", trialStarted: "بدأ التجريب! Plus لمدة 7 أيام 🎉", trialActive: "تجربة Plus · متبقي {d} يوم — اشترك للاحتفاظ", e_trial_used: "استخدمت التجربة المجانية من قبل",
 };

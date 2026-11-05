@@ -24,7 +24,7 @@ export default {
   topTitle: 'Tages-Challenge', endsIn: 'Endet in {t}', entries: '{n} Beiträge', joinCh: 'Mitmachen', leaders: 'Top heute',
   followers: 'Follower', followingN: 'Folge ich', posts: 'Posts', creations: 'Kreationen', editProfile: 'Profil bearbeiten', follow: 'Folgen', unfollow: 'Folge ich', bio: 'Bio',
   wallet: 'Guthaben', freeVideos: '{n} Gratis-Videos', credits: '{n} Credits', plusActive: 'Plus aktiv', getPlus: 'Plus holen', shopTitle: 'Mehr Videos',
-  plusDesc: '40 Videos pro Monat · unbegrenzt Fotos & Reels · Priorität', perMonth: '/ Monat', buy: 'Kaufen', pack: '{n} Videos', best: 'BESTER PREIS',
+  plusDesc: "Kein Wasserzeichen · HD · ~20 KI-Videos/Monat · alle Vorlagen", perMonth: '/ Monat', buy: 'Kaufen', pack: '{n} Videos', best: 'BESTER PREIS',
   demoPay: 'Demo-Modus — es wird kein echtes Geld abgebucht', bought: 'Fertig! 🎉',
   settings: 'Einstellungen', language: 'Sprache', auto: 'Automatisch (Gerät)', about: 'Über', safety: 'Sicherheitsregeln', version: 'Version',
   safetyText: 'Keine Nacktheit oder sexuellen Inhalte. Nichts Sexuelles, Gewalttätiges oder Demütigendes mit Minderjährigen. Kein Hass, keine Belästigung, keine Täuschung mit echten Personen. Lade nur Gesichter hoch, die du nutzen darfst. Jedes Ergebnis trägt ein PRICO AI Wasserzeichen. Gemeldete Posts werden nach Prüfung ausgeblendet.',
@@ -63,4 +63,6 @@ export default {
   cd_christmas: "Weihnachten", cd_diwali: "Diwali", cd_ramadan: "Ramadan", cd_lunar: "Mondneujahr", cd_halloween: "Halloween", cd_wedding: "Hochzeit",
   cd_cake: "Party", cdt_birthday: "Alles Gute zum Geburtstag! 🎉", cdt_newyear: "Frohes neues Jahr 2027! ✨", cdt_love: "Ich liebe dich ❤️", cdt_christmas: "Frohe Weihnachten! 🎄", cdt_diwali: "Fröhliches Diwali! 🪔",
   cdt_ramadan: "Ramadan Mubarak 🌙", cdt_lunar: "Frohes Mondneujahr! 🧧", cdt_halloween: "Happy Halloween! 🎃", cdt_wedding: "Frisch verheiratet! 💍", cdt_cake: "Lass uns feiern! 🥳",
+  // pricing
+  plusMonth: "Monatlich", plusYear: "Jährlich", perYear: "/ Jahr", saveYear: "−44%", packsTitle: "Einmalige Pakete", freeLimits: "Kostenlos: KI-Fotos mit Wasserzeichen · 3 KI-Videos zum Testen", trialCta: "7 Tage Plus gratis testen", trialDesc: "Kein Wasserzeichen, HD, 20 KI-Videos. Dann 5,99 €/Monat — jederzeit kündbar. Demo: keine Abbuchung.", trialStarted: "Test gestartet! Plus für 7 Tage 🎉", trialActive: "Plus-Test · noch {d} Tage — upgraden zum Behalten", e_trial_used: "Gratis-Test bereits genutzt",
 };

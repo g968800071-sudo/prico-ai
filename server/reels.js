@@ -30,7 +30,7 @@ const HOOK = { en: { funny: 'Wait for it… 😂', travel: 'Save this for your n
   ru: { funny: 'Жди конца… 😂', travel: 'Сохрани для поездки ✈️', food: 'Это надо попробовать 🍕', fitness: 'Без отговорок 💪', business: 'Вот как мы это делаем 💼', birthday: 'Лучший день 🎂', love: 'Мы ❤️', vlog: 'Мой день ✨' },
   uk: { funny: 'Чекай кінця… 😂', travel: 'Збережи для подорожі ✈️', food: 'Це треба спробувати 🍕', fitness: 'Без відмовок 💪', business: 'Ось як ми це робимо 💼', birthday: 'Найкращий день 🎂', love: 'Ми ❤️', vlog: 'Мій день ✨' } };
 
-function run(args, timeoutMs = 300000, wantErr = false) {
+export function run(args, timeoutMs = 300000, wantErr = false) {
   return new Promise((res, rej) => {
     if (process.env.FF_DEBUG) { const a = ffTune(args); fss.appendFileSync(process.env.FF_DEBUG, JSON.stringify(a) + '\n'); const o = a[a.length - 1]; if (o.endsWith('.mp4')) fss.cpSync(path.dirname(o), '/tmp/ffdbg-reel', { recursive: true }); }
     const p = spawn(FFMPEG, ffTune(args), { stdio: ['ignore', 'ignore', 'pipe'] });

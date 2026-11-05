@@ -29,6 +29,30 @@ export const TRACKS = [
   { id: 'trap', name: 'Gym Beast', bpm: 140, root: 98, prog: [[0, MIN], [0, MIN], [8, MAJ], [7, MAJ]], drums: 4, arp: 0, mood: 'fitness' },
   { id: 'corporate', name: 'Bright Business', bpm: 110, root: 261.63, prog: [[0, MAJ], [5, MAJ], [9, MIN], [7, MAJ]], drums: 1, arp: 2, mood: 'business' },
   { id: 'food', name: 'Kitchen Groove', bpm: 96, root: 246.94, prog: [[0, MAJ], [2, MIN], [4, MIN], [5, MAJ]], drums: 2, arp: 2, mood: 'food' },
+  { id: 'house', name: 'Deep House Drive', bpm: 122, root: 174.61, prog: [[0, MIN], [8, MAJ], [3, MAJ], [10, MAJ]], drums: 3, arp: 3, mood: 'dance' },
+  { id: 'phonk', name: 'Drift Phonk', bpm: 132, root: 87.31, prog: [[0, MIN], [0, MIN], [1, MAJ], [0, MIN]], drums: 4, arp: 0, mood: 'hype' },
+  { id: 'kpop', name: 'Neon Idol', bpm: 126, root: 277.18, prog: [[0, MAJ], [9, MIN], [5, MAJ], [7, MAJ]], drums: 3, arp: 3, mood: 'dance' },
+  { id: 'afro', name: 'Afro Sunset', bpm: 108, root: 233.08, prog: [[0, MIN], [5, MIN], [10, MAJ], [8, MAJ]], drums: 2, arp: 2, mood: 'world' },
+  { id: 'latin', name: 'Reggaeton Heat', bpm: 96, root: 220, prog: [[0, MIN], [8, MAJ], [10, MAJ], [7, MIN]], drums: 4, arp: 1, mood: 'dance' },
+  { id: 'bolly', name: 'Bollywood Spark', bpm: 116, root: 293.66, prog: [[0, MIN], [10, MAJ], [8, MAJ], [7, MAJ]], drums: 3, arp: 3, mood: 'world' },
+  { id: 'arab', name: 'Desert Nights', bpm: 100, root: 196, prog: [[0, MIN], [1, MAJ], [0, MIN], [10, MIN]], drums: 2, arp: 2, mood: 'world' },
+  { id: 'synth', name: 'Retro Synthwave', bpm: 100, root: 164.81, prog: [[0, MIN], [8, MAJ], [10, MAJ], [5, MIN]], drums: 3, arp: 3, mood: 'cool' },
+  { id: 'chillhop', name: 'Rainy Window', bpm: 78, root: 246.94, prog: [[0, MAJ], [4, MIN], [9, MIN], [5, MAJ]], drums: 1, arp: 2, mood: 'chill' },
+  { id: 'ambient', name: 'Cloud Drift', bpm: 64, root: 196, prog: [[0, MAJ], [5, MAJ], [9, MIN], [7, MAJ]], drums: 0, arp: 1, mood: 'chill' },
+  { id: 'cinema', name: 'Hero Rising', bpm: 86, root: 130.81, prog: [[0, MIN], [8, MAJ], [10, MAJ], [7, MAJ]], drums: 3, arp: 1, mood: 'epic' },
+  { id: 'suspense', name: 'Plot Twist', bpm: 72, root: 110, prog: [[0, MIN], [1, MAJ], [0, MIN], [6, MAJ]], drums: 1, arp: 0, mood: 'funny' },
+  { id: 'meme', name: 'Silly Steps', bpm: 150, root: 349.23, prog: [[0, MAJ], [7, MAJ], [0, MAJ], [5, MAJ]], drums: 2, arp: 3, mood: 'funny' },
+  { id: 'chip', name: '8-bit Quest', bpm: 144, root: 392, prog: [[0, MAJ], [5, MAJ], [7, MAJ], [9, MIN]], drums: 2, arp: 3, mood: 'funny' },
+  { id: 'wedding', name: 'Forever Yours', bpm: 72, root: 329.63, prog: [[0, MAJ], [7, MAJ], [9, MIN], [5, MAJ]], drums: 0, arp: 2, mood: 'love' },
+  { id: 'rnb', name: 'Velvet R&B', bpm: 88, root: 233.08, prog: [[0, MAJ], [9, MIN], [2, MIN], [7, MAJ]], drums: 2, arp: 1, mood: 'love' },
+  { id: 'halloween', name: 'Spooky Night', bpm: 110, root: 146.83, prog: [[0, MIN], [1, MAJ], [6, MAJ], [0, MIN]], drums: 2, arp: 3, mood: 'holiday' },
+  { id: 'diwali', name: 'Festival of Lights', bpm: 112, root: 261.63, prog: [[0, MAJ], [10, MAJ], [5, MAJ], [7, MAJ]], drums: 3, arp: 3, mood: 'holiday' },
+  { id: 'xmaspop', name: 'Cozy Christmas', bpm: 100, root: 293.66, prog: [[0, MAJ], [9, MIN], [2, MIN], [7, MAJ]], drums: 1, arp: 3, mood: 'holiday' },
+  { id: 'runway', name: 'Catwalk', bpm: 124, root: 130.81, prog: [[0, MIN], [0, MIN], [3, MAJ], [10, MAJ]], drums: 4, arp: 1, mood: 'cool' },
+  { id: 'motiv', name: 'Rise & Grind', bpm: 120, root: 220, prog: [[0, MAJ], [7, MAJ], [9, MIN], [5, MAJ]], drums: 3, arp: 2, mood: 'sport' },
+  { id: 'acoustic', name: 'Road Trip', bpm: 104, root: 196, prog: [[0, MAJ], [7, MAJ], [9, MIN], [5, MAJ]], drums: 1, arp: 2, mood: 'travel' },
+  { id: 'jazz', name: 'Cafe Jazz', bpm: 92, root: 233.08, prog: [[2, MIN], [7, MAJ], [0, MAJ], [9, MIN]], drums: 1, arp: 2, mood: 'chill' },
+  { id: 'brainrot', name: 'Brainrot Bounce', bpm: 160, root: 311.13, prog: [[0, MAJ], [1, MAJ], [0, MAJ], [6, MAJ]], drums: 4, arp: 3, mood: 'funny' },
 ];
 export const byId = id => TRACKS.find(t => t.id === id) || TRACKS[0];
 
@@ -78,4 +102,6 @@ export async function trackFile(id) {
   })().finally(() => pending.delete(out));
   pending.set(out, p); return p;
 }
-export const list = () => TRACKS.map(({ id, name, bpm, mood }) => ({ id, name, bpm, mood, url: `/api/music/${id}.m4a` }));
+const CAT = { happy: 'pop', party: 'pop', dance: 'dance', hype: 'hype', fitness: 'hype', sport: 'hype', cool: 'hype', chill: 'chill', nostalgia: 'chill', food: 'chill', travel: 'chill', business: 'chill', love: 'love', funny: 'funny', epic: 'epic', holiday: 'holiday', world: 'world' };
+export const CATS = ['pop', 'dance', 'hype', 'chill', 'love', 'funny', 'epic', 'holiday', 'world'];
+export const list = () => TRACKS.map(({ id, name, bpm, mood }) => ({ id, name, bpm, mood, cat: CAT[mood] || 'pop', url: `/api/music/${id}.m4a` }));

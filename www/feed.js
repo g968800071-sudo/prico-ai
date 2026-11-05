@@ -11,9 +11,12 @@ export function mountHome(el) {
   root = el; el.innerHTML = '';
   el.append(h(`<div id="feed" style="position:absolute;inset:0"><div id="feedScroll"></div>
     <img class="logoMini" src="logo.svg" alt="PRICO AI">
+    <div class="feedSide"><button class="liveP" aria-label="LIVE">🔴 LIVE</button><button class="topP" aria-label="${esc(t('tabTop'))}">🏆</button></div>
     <div class="feedTop">${['following', 'foryou', 'challenge'].map(k => `<button data-k="${k}" class="${k === tab ? 'on' : ''}">${esc(t(k === 'foryou' ? 'forYou' : k))}</button>`).join('')}</div>
     <button class="soundBtn" aria-label="sound">${S.muted ? I.volOff : I.volOn}</button></div>`));
   scroller = $('#feedScroll', el);
+  $('.liveP', el).onclick = () => { location.hash = '#/live'; };
+  $('.topP', el).onclick = () => { location.hash = '#/top'; };
   $$('.feedTop button', el).forEach(b => b.onclick = () => { if (b.dataset.k === 'following' && !S.me) return needAuth().then(() => switchTab('following')); switchTab(b.dataset.k); });
   $('.soundBtn', el).onclick = () => { S.muted = !S.muted; $('.soundBtn', el).innerHTML = S.muted ? I.volOff : I.volOn; if (cur) { const v = $('video', cur); if (v) { v.muted = S.muted; v.play().catch(() => {}); } } haptic(); };
   io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && e.intersectionRatio > .6) activate(e.target); else deactivate(e.target); }), { root: scroller, threshold: [0, .6, 1] });
@@ -120,6 +123,9 @@ export function openShare(p, el) {
   const cp = h(`<button class="btn wide" style="margin-top:8px">${I.copy} ${esc(t('copy'))} link</button>`);
   cp.onclick = async () => { const { copyText } = await import('./core.js'); await copyText(link); toast(t('copied')); sh.close(); };
   body.append(cp);
+  const dm = h(`<button class="btn pri wide" style="margin-top:8px">💌 ${esc(t('sendToFriend'))}</button>`);
+  dm.onclick = async () => { sh.close(); (await import('./inbox.js')).sendPostTo(p); };
+  body.prepend(dm);
 }
 export function openReport(p) {
   const rs = ['rNude', 'rMinor', 'rHate', 'rFake', 'rSpam', 'rOther'];

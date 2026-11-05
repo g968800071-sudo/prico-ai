@@ -6,10 +6,15 @@ export const PRODUCTS = [
   { id: 'pack_10', kind: 'pack', price: 4.99, currency: 'EUR', credits: 10 },
   { id: 'pack_30', kind: 'pack', price: 11.99, currency: 'EUR', credits: 30 },
   { id: 'pack_100', kind: 'pack', price: 29.99, currency: 'EUR', credits: 100 },
+  { id: 'coins_70', kind: 'coins', price: 0.99, currency: 'EUR', coins: 70 },
+  { id: 'coins_350', kind: 'coins', price: 4.99, currency: 'EUR', coins: 350 },
+  { id: 'coins_1400', kind: 'coins', price: 19.99, currency: 'EUR', coins: 1400, best: true },
+  { id: 'coins_3500', kind: 'coins', price: 49.99, currency: 'EUR', coins: 3500 },
 ];
 export const mode = () => (process.env.PAYMENTS_MODE === 'stripe' && process.env.STRIPE_SECRET_KEY ? 'stripe' : 'demo');
 export function grant(u, p) {
   if (p.kind === 'sub') { const base = Math.max(Date.now(), u.plus?.until || 0); u.plus = { ...(u.plus || {}), until: base + 30 * 86400000 }; }
+  else if (p.kind === 'coins') u.coins = (u.coins || 0) + p.coins;
   else u.credits = (u.credits || 0) + p.credits;
   (u.purchases ||= []).push({ id: p.id, at: Date.now(), price: p.price, mode: mode() });
 }

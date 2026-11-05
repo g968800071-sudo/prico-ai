@@ -41,16 +41,26 @@ export async function bg(scene, w = W, h = H) {
 
 const FONT_AR = path.join(ROOT, 'assets/fonts/NotoSansArabic-Bold.ttf');
 const FONT_HI = path.join(ROOT, 'assets/fonts/NotoSansDevanagari-Bold.ttf');
-export function fontFor(text) {
+const FF = f => path.join(ROOT, 'assets/fonts', f);
+export const FONTS = { classic: { file: FONT, name: 'Montserrat Alternates ExtraBold' }, lobster: { file: FF('Lobster-Regular.ttf'), name: 'Lobster' }, pacifico: { file: FF('Pacifico-Regular.ttf'), name: 'Pacifico' },
+  pixel: { file: FF('PressStart2P-Regular.ttf'), name: 'Press Start 2P' }, bold: { file: FF('RussoOne-Regular.ttf'), name: 'Russo One' }, script: { file: FF('MarckScript-Regular.ttf'), name: 'Marck Script' } };
+export function fontFor(text, key) {
   if (/[\u0600-\u06FF]/.test(text)) return { file: FONT_AR, name: 'Noto Sans Arabic Bold' };
   if (/[\u0900-\u097F]/.test(text)) return { file: FONT_HI, name: 'Noto Sans Devanagari Bold' };
-  return { file: FONT, name: 'Montserrat Alternates ExtraBold' };
+  return FONTS[key] || FONTS.classic;
 }
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // Text rendered with bundled Cyrillic font + soft shadow. Returns {png,w,h}.
-export async function textPng(text, px, color = '#ffffff', maxW = 660, stroke = false) {
-  const F = fontFor(text);
+export async function textPng(text, px, color = '#ffffff', maxW = 660, stroke = false, font, pill) {
+  const F = fontFor(text, font);
+  if (pill) { // solid rounded background box (TikTok-style)
+    const t = await sharp({ text: { text: `<span foreground="${color}">${esc(text)}</span>`, font: `${F.name} ${px}`, fontfile: F.file, rgba: true, width: maxW, align: 'center', dpi: 72 } }).png().toBuffer();
+    const m = await sharp(t).metadata(); const px2 = Math.round(px * 0.45), py = Math.round(px * 0.3);
+    const W2 = m.width + px2 * 2, H2 = m.height + py * 2;
+    const box = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W2}" height="${H2}"><rect width="${W2}" height="${H2}" rx="${Math.round(px * 0.35)}" fill="${/^#[0-9a-f]{6}$/i.test(pill) ? pill : '#000000'}" fill-opacity="0.78"/></svg>`);
+    return { png: await sharp(box).composite([{ input: t, left: px2, top: py }]).png().toBuffer(), w: W2, h: H2 };
+  }
   const t = await sharp({ text: { text: `<span foreground="${color}">${esc(text)}</span>`, font: `${F.name} ${px}`, fontfile: F.file, rgba: true, width: maxW, align: 'center', dpi: 72 } }).png().toBuffer();
   const m = await sharp(t).metadata();
   const pad = Math.round(px * 0.5);
@@ -97,6 +107,11 @@ const FILTERS = {
   pop: img => img.modulate({ saturation: 1.6 }).linear(1.25, -18).sharpen({ sigma: 1.5 }),
   gold: img => img.recomb([[1.12, 0.06, 0], [0.04, 1.0, 0], [0, 0, 0.78]]).modulate({ saturation: 1.15 }).linear(1.2, -16),
   warm: img => img.recomb([[1.08, 0.04, 0], [0.02, 1.0, 0], [0, 0, 0.9]]).modulate({ saturation: 1.12 }),
+  cyber: img => img.recomb([[0.9, 0.0, 0.3], [0.0, 0.8, 0.35], [0.2, 0.1, 1.2]]).modulate({ saturation: 1.4 }).linear(1.2, -14).sharpen({ sigma: 1.2 }),
+  noir: img => img.recomb([[0.3, 0.59, 0.11], [0.3, 0.59, 0.11], [0.3, 0.59, 0.11]]).linear(1.35, -30).sharpen({ sigma: 1 }),
+  pastel: img => img.modulate({ saturation: 0.8, brightness: 1.12 }).linear(0.85, 34).blur(0.4),
+  sketch: img => img.recomb([[0.3, 0.59, 0.11], [0.3, 0.59, 0.11], [0.3, 0.59, 0.11]]).median(3).linear(1.9, -60).sharpen({ sigma: 2.5, m1: 3, m2: 6 }),
+  retro: img => img.recomb([[1.1, 0.1, 0], [0.05, 0.95, 0], [0, 0.05, 0.75]]).modulate({ saturation: 1.25 }).linear(1.05, 10),
 };
 
 // Face input: { img: jpeg selfie, cut: png person cut-out with alpha (on-device segmentation) | null }
@@ -180,6 +195,14 @@ const LAYOUT = {
   vintage: { y: .5, s: .5, pw: .62, by: .775, glow: '#d8c3a0', glowA: .35, clip: [.23, .21, .77, .775] }, park: { y: .56, s: .54, pw: .84, by: 1.02, glow: '#fff1c8' },
   comic: { y: .5, s: .62, pw: .92, by: 1.02, glow: '#ffffff' }, figurine: { y: .62, s: .3, pw: .34, by: .79, x: .435, glow: '#ffffff' },
   podcast: { y: .55, s: .58, pw: .86, by: 1.02, x: .55, glow: '#c38bff' }, gym: { y: .55, s: .58, pw: .92, by: 1.02, glow: '#ffc35c' },
+  halloween: { y: .55, s: .54, pw: .84, by: 1.02, x: .56, glow: '#b07bff' }, christmas: { y: .55, s: .54, pw: .84, by: 1.02, x: .58, glow: '#ffd38a' },
+  diwali: { y: .52, s: .54, pw: .84, by: 1.0, glow: '#ffb347' }, ramadan: { y: .52, s: .54, pw: .84, by: .98, x: .45, glow: '#ffd98a' },
+  lunar: { y: .55, s: .54, pw: .84, by: 1.02, glow: '#ff6a5c' }, cake: { y: .5, s: .5, pw: .78, by: .98, glow: '#ffd1e8' },
+  kpop: { y: .5, s: .54, pw: .82, by: .98, glow: '#ff7af0' }, redcarpet: { y: .52, s: .54, pw: .82, by: 1.02, glow: '#fff1c2' },
+  ocean: { y: .45, s: .56, pw: .84, by: 1.0, glow: '#a8f0ff' }, tokyo: { y: .52, s: .56, pw: .84, by: 1.02, glow: '#ff5ce1' },
+  dubai: { y: .52, s: .56, pw: .84, by: 1.02, x: .56, glow: '#ffd08a' }, gamer: { y: .52, s: .58, pw: .9, by: 1.02, glow: '#9b7bff' },
+  hallway: { y: .52, s: .56, pw: .84, by: 1.02, glow: '#ffffff' }, snowglobe: { y: .46, s: .44, pw: .58, by: .80, glow: '#d6ecff' },
+  carnival: { y: .52, s: .56, pw: .84, by: 1.02, glow: '#ffcf5c' }, runway: { y: .52, s: .56, pw: .8, by: 1.02, glow: '#ffffff' },
 };
 
 export async function demoPhoto(tpl, faces, lang = 'en', opts = {}) {
@@ -317,6 +340,15 @@ function motion(name, i, n) {
     case 'inflate': return { x: `(W-w)/2+if(gt(t,3.2),40*sin(2*PI*t),0)`, yo: `-if(gt(t,3.2),(t-3.2)*(t-3.2)*170,0)`, a: `0.08*sin(2*PI*t*1.4)`, size: .6, cy: .5, by: 1.0, sc: `(1+min(0.9,t*0.3))` };
     case 'spin': return { x: `(W-w)/2+40*sin(2*PI*t/3)`, yo: `-30*abs(sin(2*PI*t))`, a: `2*PI*t/1.2`, size: .6, cy: .5, by: .9 };
     case 'talk': return { x: `W*0.55-w/2+4*sin(2*PI*t*0.7)`, yo: `+3*sin(2*PI*t*3.1)`, a: `0.03*sin(2*PI*t*0.8)`, size: .84, cy: .5, sc: `(1+0.012*sin(2*PI*t*4.3))` };
+    // 2026 physics FX (Pika-style) — sx/sy: separate axis scale, fx: extra face filters, vfx: whole-frame filters
+    case 'squish': return { x: `(W-w)/2`, yo: '', a: '0', size: .66, cy: .52, by: 1.0, sx: `(1+0.38*abs(sin(2*PI*t*0.9))*min(1,t/0.8))`, sy: `(1-0.32*abs(sin(2*PI*t*0.9))*min(1,t/0.8))` };
+    case 'melt': return { x: `(W-w)/2+6*sin(2*PI*t)`, yo: `+if(gt(t,1.2),(t-1.2)*28,0)`, a: '0', size: .66, cy: .5, by: 1.0, sx: `(1+0.22*max(0,t-1.2)/4.8)`, sy: `(1+0.55*max(0,t-1.2)/4.8)`, fx: `,gblur=sigma=1.2:steps=1` };
+    case 'explode': return { x: `(W-w)/2+if(between(t,2.4,3.2),20*sin(80*t),0)`, yo: '', a: `if(gt(t,3.2),0.6*(t-3.2),0)`, size: .62, cy: .5, by: .95, sc: `if(lt(t,2.4),1+0.06*t,if(lt(t,3.2),1.15+0.4*(t-2.4),min(3.5,1.47+2.5*(t-3.2))))`, fx: `,fade=t=out:st=3.3:d=0.5:alpha=1`, vfx: `,eq=brightness='if(between(t,3.2,3.45),0.45,0)':eval=frame` };
+    case 'crashzoom': return { x: `(W-w)/2`, yo: '', a: '0', size: .7, cy: .5, by: 1.0, sc: `if(lt(t,1.5),1,if(lt(t,1.75),1+3.2*(t-1.5),1.8+0.03*sin(2*PI*t*6)))`, vfx: `,rgbashift=rh=10:bh=-10:enable='between(t,1.5,2.1)'` };
+    case 'jelly': return { x: `(W-w)/2`, yo: `-20*abs(sin(2*PI*t*1.2))`, a: `0.06*sin(2*PI*t*2.4)`, size: .64, cy: .5, by: 1.0, sx: `(1+0.12*sin(2*PI*t*2.4))`, sy: `(1-0.12*sin(2*PI*t*2.4))` };
+    case 'shrink': return { x: `(W-w)/2+30*sin(2*PI*t/2)`, yo: `-12*abs(sin(2*PI*t*2))`, a: `0.1*sin(2*PI*t*2)`, size: .7, cy: .6, by: 1.0, sc: `max(0.3,1-0.7*min(1,t/2.2))` };
+    case 'glitch': return { x: `(W-w)/2+if(lt(mod(t,1.1),0.12),24*sin(200*t),0)`, yo: '', a: '0', size: .74, cy: .5, by: 1.02, vfx: `,rgbashift=rh=14:bh=-14:enable='lt(mod(t,1.1),0.15)',noise=alls=10:allf=t` };
+    case 'vhs': return { x: `(W-w)/2+4*sin(2*PI*t/3)`, yo: '', a: '0', size: .76, cy: .5, by: 1.02, vfx: `,rgbashift=rh=3:bh=-3,noise=alls=16:allf=t,eq=saturation=0.75:contrast=1.08,vignette` };
     case 'hug': return { x: i === 0 ? `W*0.5-w*0.8-(1-min(1,t/2.5))*W*0.32` : `W*0.5-w*0.2+(1-min(1,t/2.5))*W*0.32`, yo: `+if(lt(t,2.5),10*abs(sin(2*PI*t*1.2)),0)`, a: `${i === 0 ? '' : '-'}0.13*min(1,max(0,(t-2.5)/0.5))`, size: .52, cy: .5 };
     default: return { x: `(W-w)/2`, yo: '', a: '0', size: .75, cy: .45 };
   }
@@ -325,7 +357,7 @@ function motion(name, i, n) {
 export async function demoVideo(tpl, faces, lang = 'en', opts = {}) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'prico-'));
   try {
-    const still = tpl.motion === 'kenburns';
+    const still = tpl.motion === 'kenburns' || tpl.motion === 'develop';
     const n = still ? 0 : Math.max(1, tpl.faces || 1);
     const useFaces = Array.from({ length: n }, (_, i) => faces[i % faces.length]);
     const BW = Math.round(VW * 1.12), BH = Math.round(VH * 1.12);
@@ -342,7 +374,7 @@ export async function demoVideo(tpl, faces, lang = 'en', opts = {}) {
       await fs.writeFile(path.join(dir, `f${i}.png`), p.png);
       cutInfo.push(p);
     }
-    const pk = { birthday: 'confetti', newyear: 'snow', love: 'hearts', wedding: 'hearts', stadium: 'confetti' }[tpl.scene] || 'sparkle';
+    const pk = tpl.particles || { birthday: 'confetti', newyear: 'snow', love: 'hearts', wedding: 'hearts', stadium: 'confetti', christmas: 'snow', snowglobe: 'snow', carnival: 'confetti', kpop: 'confetti', cake: 'confetti', lunar: 'confetti', valentine: 'hearts' }[tpl.scene] || 'sparkle';
     await fs.writeFile(path.join(dir, 'p.png'), await particles(pk, VW, VH, 7));
     await fs.writeFile(path.join(dir, 'shade.png'), await sharp(shade(VW, VH)).png().toBuffer());
     await fs.writeFile(path.join(dir, 'wm.png'), (await watermark(1)).png);
@@ -374,10 +406,11 @@ export async function demoVideo(tpl, faces, lang = 'en', opts = {}) {
     for (const i of order) {
       const m = motion(tpl.motion, i, n), p = cutInfo[i];
       const sc = m.sc || '1';
-      fg += `[${i + 1}:v]format=rgba,scale=w='trunc(iw*${sc}/2)*2':h='trunc(ih*${sc}/2)*2':eval=frame,rotate=a='${m.a}':c=none:ow='hypot(iw,ih)':oh='hypot(iw,ih)'[f${i}];`;
+      const sx = m.sx || sc, sy = m.sy || sc;
+      fg += `[${i + 1}:v]format=rgba,scale=w='max(2,trunc(iw*${sx}/2)*2)':h='max(2,trunc(ih*${sy}/2)*2)':eval=frame,rotate=a='${m.a}':c=none:ow='hypot(iw,ih)':oh='hypot(iw,ih)'${m.fx || ''}[f${i}];`;
       // rotate enlarges the frame to the diagonal; compensate so the anchor stays put
       const y = p.cut
-        ? `H*${m.by || 1.02}+(${p.pad}-${p.h / 2})*${sc}-h/2${m.yo}`
+        ? `H*${m.by || 1.02}+(${p.pad}-${p.h / 2})*${m.sy || sc}-h/2${m.yo}`
         : `H*${m.cy}-h/2${m.yo}`;
       fg += `[${last}][f${i}]overlay=x='${m.x}':y='${y}':eval=frame[o${i}];`;
       last = `o${i}`;
@@ -392,6 +425,9 @@ export async function demoVideo(tpl, faces, lang = 'en', opts = {}) {
       last = 'q4';
     }
     if (oIdx >= 0) { fg += `;[${last}][${oIdx}:v]overlay=0:0[q5]`; last = 'q5'; }
+    const vfx = (motion(tpl.motion, 0, 1).vfx || '') + (tpl.vfx ? ',' + tpl.vfx : '');
+    if (vfx) { fg += `;[${last}]format=yuv420p${vfx}[qx]`; last = 'qx'; }
+    if (tpl.fade === 'white' || tpl.motion === 'develop') { fg += `;[${last}]fade=t=in:st=0:d=2.2:color=white[qd]`; last = 'qd'; }
     if (tpl.filter === 'old' && still) { fg += `;[${last}]noise=alls=14:allf=t,eq=brightness='0.02*sin(2*PI*t*7)'[q6]`; last = 'q6'; }
     fg += `;[${last}][${wIdx}:v]overlay=x=W-w-18:y=H-h-22,format=yuv420p[v];`;
     fg += `[${aIdx}:a]afade=t=in:d=0.3,afade=t=out:st=${D - 0.6}:d=0.6,volume=0.9[a]`;
@@ -434,3 +470,12 @@ export async function brandVideo(buf) {
 }
 
 function fss_dbg(a) { import('node:fs').then(f => { f.appendFileSync(process.env.FF_DEBUG, JSON.stringify(a) + "\n"); const o = a[a.length - 1]; f.cpSync(path.dirname(o), '/tmp/ffdbg', { recursive: true }); }); }
+
+export async function stickerPng(code, size, rot = 0) {
+  if (!/^[0-9a-f-]{2,20}$/.test(code || '')) return null;
+  try {
+    let img = await sharp(path.join(STICKERS, code + '.svg'), { density: 300 }).resize(size, size).png().toBuffer();
+    if (rot) img = await sharp(img).rotate(rot, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+    return img;
+  } catch { return null; }
+}

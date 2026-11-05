@@ -19,6 +19,11 @@ import * as providers from './providers/index.js';
 import { demoPhoto } from './render.js';
 import * as payments from './payments.js';
 import { seed } from './seed.js';
+import * as editor from './editor.js';
+import * as tts from './tts.js';
+import * as rt from './rt.js';
+import { brandImage } from './render.js';
+const VERSION = '1.1.0';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WWW = path.join(ROOT, 'www');
@@ -81,7 +86,7 @@ function wallet(u) {
   return { freeVideos: u.freeVideos, credits: u.credits, plus, plusUntil: plus ? u.plus.until : null, plusLeft: plus ? Math.max(0, PLUS_VIDEOS_MONTH - (u.plus.used || 0)) : 0,
     photosLeft: plus ? 999 : Math.max(0, FREE_PHOTOS_DAY - (u.photosToday || 0)), reelsLeft: plus ? 999 : Math.max(0, FREE_REELS_DAY - (u.reelsToday || 0)) };
 }
-function me(u) { return { ...userPub(u, u), email: u.email, lang: u.lang || 'en', wallet: wallet(u), faces: facesOf(u).map(faceOut), onboarded: !!u.onboarded }; }
+function me(u) { return { ...userPub(u, u), email: u.email, lang: u.lang || 'en', wallet: wallet(u), coins: isOwner(u) ? 999999 : (u.coins || 0), diamonds: u.diamonds || 0, faces: facesOf(u).map(faceOut), onboarded: !!u.onboarded }; }
 const facesOf = u => (u.faces || []).map(f => db.faces[f]).filter(Boolean);
 const faceOut = f => ({ id: f.id, url: mediaUrl(f.cut || f.img), cut: !!f.cut });
 
@@ -93,7 +98,7 @@ function postOut(p, viewer) {
   const m = db.media[p.media] || {};
   return { id: p.id, type: m.type, url: mediaUrl(m.blob), poster: mediaUrl(m.poster || m.blob), caption: p.caption, createdAt: p.createdAt,
     user: { handle: u?.handle, name: u?.name, avatar: mediaUrl(u?.avatar), verified: !!u?.official, id: u?.id, isFollowing: viewer ? !!db.follows[viewer.id + ':' + p.uid] : false },
-    tpl: t ? { id: t.id, name: loc(t.name, lang), emoji: t.emoji, kind: t.kind, faces: t.kind === 'video' ? (t.faces || 1) : 1 } : (p.reel ? { id: 'reel', name: 'Reels', emoji: '🎬', kind: 'reel' } : null), reel: !!p.reel,
+    tpl: t ? { id: t.id, name: loc(t.name, lang), emoji: t.emoji, kind: t.kind, faces: t.kind === 'video' ? (t.faces || 1) : 1 } : (p.reel ? { id: 'reel', name: 'Reels', emoji: '🎬', kind: 'reel' } : p.edit ? { id: 'edit', name: 'PRICO Editor', emoji: '✂️', kind: 'edit' } : p.cam ? { id: 'cam', name: 'PRICO Camera', emoji: '📸', kind: 'cam' } : null), reel: !!p.reel,
     likes: p.likes || 0, liked: viewer ? !!db.likes[viewer.id + ':' + p.id] : false, comments: p.comments || 0, shares: p.shares || 0, challenge: p.challenge || null, demo: !!m.demo };
 }
 function handleFrom(name) {
@@ -117,6 +122,7 @@ function pump() {
 function refund(j) { const u = db.users[j.uid]; if (!u || !j.charge) return; if (j.charge === 'reel') u.reelsToday--; else if (j.charge === 'free') u.freeVideos++; else if (j.charge === 'credit') u.credits++; else if (j.charge === 'plus') u.plus.used--; else if (j.charge === 'photo') u.photosToday--; }
 async function runJob(j) {
   if (j.type === 'reel') return runReel(j);
+  if (j.type === 'edit') return runEdit(j);
   const t = byId(j.tpl); const u = db.users[j.uid];
   const faces = [];
   for (const fid of j.faces) { const f = db.faces[fid]; if (!f) continue; faces.push({ img: (await store.getBlob(f.img))?.data, cut: f.cut ? (await store.getBlob(f.cut))?.data : null }); }
@@ -142,7 +148,16 @@ async function runReel(j) {
   db.media[mid] = { id: mid, uid: u.id, type: 'video', reel: true, blob, poster, tpl: null, niche: j.niche, prompt: j.prompt || '', createdAt: now(), duration: r.duration, captions: r.captions };
   j.status = 'done'; j.media = mid; j.finished = now();
 }
+async function runEdit(j) {
+  const u = db.users[j.uid];
+  const r = await editor.render(j.project, x => { j.prog = x; });
+  const blob = await store.putBlob(r.mp4, 'video/mp4'); const poster = await store.putBlob(r.poster, 'image/jpeg');
+  const mid = id(10);
+  db.media[mid] = { id: mid, uid: u.id, type: 'video', edit: true, cam: !!j.cam, blob, poster, tpl: null, prompt: '', createdAt: now(), duration: r.duration };
+  j.status = 'done'; j.media = mid; j.finished = now();
+}
 function jobOut(j) {
+  if (j.type === 'edit') { const ahead = j.status === 'queued' ? queue.indexOf(j) + running : 0; return { id: j.id, status: j.status, progress: j.status === 'done' ? 1 : j.status === 'running' ? Math.max(0.05, j.prog || 0.05) : 0, ahead, error: j.error, media: j.media ? mediaOut(db.media[j.media]) : null }; }
   const eta = (j.type === 'reel' ? 10 + 4 * (j.uploads.length || 4) : (providers.current().etaSec[byId(j.tpl).kind] || 10)) * 1000;
   const ahead = j.status === 'queued' ? queue.indexOf(j) + running : 0;
   const prog = j.status === 'done' ? 1 : j.status === 'running' ? Math.min(0.95, (now() - j.started) / eta) : 0;
@@ -186,7 +201,7 @@ function feed(tab, viewer, cursor = 0, limit = 8) {
 const routes = [];
 const r = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn });
 
-r('GET', '/api/health', async () => ({ ok: true, provider: providers.current().name, store: store.backend(), payments: payments.mode(), users: Object.keys(db.users).length, posts: Object.keys(db.posts).length }));
+r('GET', '/api/health', async () => ({ ok: true, version: VERSION, tts: tts.provider(), lives: hub?.lives.size || 0, provider: providers.current().name, store: store.backend(), payments: payments.mode(), users: Object.keys(db.users).length, posts: Object.keys(db.posts).length }));
 
 r('POST', '/api/auth/register', async (req) => {
   const { email, password, name, lang } = await json(req);
@@ -255,7 +270,7 @@ r('GET', '/api/catalog', async (req) => {
   const ch = todayChallenge();
   return { groups: Object.fromEntries(Object.entries(catalog.GROUPS).map(([k, v]) => [k, loc(v, lang)])), templates: catalog.ALL.map(t => tplOut(t, lang)),
     challenge: { day: ch.day, name: loc(ch.name, lang), tpl: ch.tpl }, provider: providers.current().name,
-    niches: Object.entries(NICHES).map(([k, v]) => ({ id: k, emoji: v.emoji, music: v.music })), music: music.list(),
+    niches: Object.entries(NICHES).map(([k, v]) => ({ id: k, emoji: v.emoji, music: v.music })), music: music.list(), musicCats: music.CATS,
     stickers: STICKERS };
 });
 r('GET', '/api/preview/:file', async (req, p, res) => {
@@ -307,16 +322,57 @@ setInterval(() => { for (const [k, v] of uploads) if (now() - v.at > 3 * 3600000
 r('POST', '/api/uploads', async (req) => {
   const u = need(req);
   const ct = String(req.headers['content-type'] || '');
-  const kind = ct.startsWith('video/') ? 'video' : ct.startsWith('image/') ? 'image' : bad('bad_type');
-  if ([...uploads.values()].filter(x => x.uid === u.id).length >= 30) bad('too_many_uploads', 429);
+  const kind = ct.startsWith('video/') ? 'video' : ct.startsWith('image/') ? 'image' : ct.startsWith('audio/') ? 'audio' : bad('bad_type');
+  if ([...uploads.values()].filter(x => x.uid === u.id).length >= 80) bad('too_many_uploads', 429);
   const buf = await readBody(req, kind === 'video' ? 60e6 : 15e6);
-  const uid = id(10); const ext = kind === 'video' ? (ct.includes('quicktime') ? '.mov' : ct.includes('webm') ? '.webm' : '.mp4') : '.img';
+  const uid = id(10); const ext = kind === 'video' ? (ct.includes('quicktime') ? '.mov' : ct.includes('webm') ? '.webm' : '.mp4') : kind === 'audio' ? (ct.includes('webm') ? '.webm' : ct.includes('ogg') ? '.ogg' : ct.includes('wav') ? '.wav' : ct.includes('aac') ? '.aac' : '.m4a') : '.img';
   const file = path.join(UP_DIR, uid + ext); await fs.writeFile(file, buf);
   let info = { duration: 0 };
+  if (kind !== 'image' && /webm|ogg/.test(ct)) { // MediaRecorder WebM has no duration header → remux so ffmpeg/ffprobe know the length
+    const p0 = await reels.probe(file).catch(() => ({ duration: 0 }));
+    if (!p0.duration) { const fx = file.replace(/(\.\w+)$/, '.fix$1'); try { await reels.run(['-y', '-loglevel', 'error', '-i', file, '-c', 'copy', fx], 60000); await fs.rename(fx, file); } catch { await fs.rm(fx, { force: true }); } }
+  }
   if (kind === 'video') { info = await reels.probe(file); if (!info.video) { fs.rm(file, { force: true }); bad('bad_video'); } if (info.duration > 180) { fs.rm(file, { force: true }); bad('video_too_long'); } }
+  else if (kind === 'audio') { info = await reels.probe(file); if (!info.audio) { fs.rm(file, { force: true }); bad('bad_audio'); } }
   else { const sharp = (await import('sharp')).default; const m = await sharp(file).metadata().catch(() => null); if (!m) { fs.rm(file, { force: true }); bad('bad_image'); } }
-  uploads.set(uid, { uid: u.id, kind, path: file, at: now(), duration: info.duration });
-  return { id: uid, kind, duration: info.duration };
+  uploads.set(uid, { uid: u.id, kind, path: file, at: now(), duration: info.duration, ct });
+  return { id: uid, kind, duration: info.duration, url: `/api/uploads/${uid}` };
+});
+r('GET', '/api/uploads/:uid', async (req, p, res) => {
+  const up = uploads.get(p.uid); if (!up) bad('not_found', 404);
+  const buf = await fs.readFile(up.path);
+  send(res, 200, buf, { 'Content-Type': up.ct || 'application/octet-stream', 'Cache-Control': 'private, max-age=3600', 'Accept-Ranges': 'bytes' });
+});
+// Free TTS voiceover (eSpeak-NG locally; ElevenLabs if ELEVENLABS_API_KEY is set) → temp upload usable in the editor.
+r('POST', '/api/tts', async (req) => {
+  const u = need(req); const b = await json(req);
+  const text = String(b.text || '').trim().slice(0, 500); if (!text) bad('empty'); if (!check(text).ok) bad('unsafe_text', 422);
+  const lang = LANGS.includes(b.lang) ? b.lang : (u.lang || 'en');
+  const out = await tts.synth(text, lang, String(b.voice || 'nova'));
+  const uid = id(10); const file = path.join(UP_DIR, uid + '.aac'); await fs.writeFile(file, out.data);
+  const info = await reels.probe(file);
+  uploads.set(uid, { uid: u.id, kind: 'audio', path: file, at: now(), duration: info.duration || out.duration, ct: 'audio/aac' });
+  return { id: uid, kind: 'audio', duration: info.duration || out.duration, url: `/api/uploads/${uid}`, provider: tts.provider() };
+});
+r('GET', '/api/editor/meta', async () => ({ filters: Object.keys(editor.FILTERS), transitions: editor.TRANS, anims: editor.ANIMS, aspects: Object.keys(editor.ASPECTS), fonts: ['classic', 'bold', 'lobster', 'pacifico', 'script', 'pixel'], voices: tts.list(), music: music.list(), musicCats: music.CATS }));
+// Editor export: free, no paywall (research: CapCut's #1 complaint). Rendered server-side by ffmpeg.
+r('POST', '/api/edit', async (req) => {
+  const u = need(req); const b = await json(req);
+  const resolve = x => { const up = uploads.get(x); return up && up.uid === u.id ? up : null; };
+  let project;
+  try { project = editor.clean(b.project, resolve, t => check(t).ok, STICKERS, music.TRACKS.map(t => t.id)); } catch (e) { bad(e.message, e.code || 400); }
+  if ([...jobs.values()].some(j => j.uid === u.id && (j.status === 'queued' || j.status === 'running'))) bad('busy', 429);
+  const j = { id: id(10), type: 'edit', uid: u.id, project, cam: !!b.cam, uploads: [], status: 'queued', created: now(), charge: null };
+  jobs.set(j.id, j); queue.push(j); pump();
+  return { job: jobOut(j), wallet: wallet(u), duration: project.total };
+});
+// Camera photo (effects applied on-device) → branded media item.
+r('POST', '/api/media/photo', async (req) => {
+  const u = need(req); const buf = await readBody(req, 10e6);
+  const img = await brandImage(buf).catch(() => bad('bad_image'));
+  const blob = await store.putBlob(img, 'image/jpeg'); const mid = id(10);
+  db.media[mid] = { id: mid, uid: u.id, type: 'photo', cam: true, blob, poster: blob, tpl: null, prompt: '', createdAt: now() };
+  save(); return { media: mediaOut(db.media[mid]) };
 });
 r('POST', '/api/reels', async (req) => {
   const u = need(req); const b = await json(req);
@@ -354,7 +410,7 @@ r('POST', '/api/posts', async (req) => {
   if (m.post) return { post: postOut(db.posts[m.post], u) };
   const caption = String(b.caption || '').slice(0, 220); if (!check(caption).ok) bad('unsafe_text', 422);
   const ch = todayChallenge();
-  const p = { id: id(9), uid: u.id, media: m.id, tpl: m.tpl, reel: !!m.reel, caption, createdAt: now(), likes: 0, comments: 0, shares: 0, challenge: b.challenge ? ch.day : null, reports: [] };
+  const p = { id: id(9), uid: u.id, media: m.id, tpl: m.tpl, reel: !!m.reel, edit: !!m.edit, cam: !!m.cam, caption, createdAt: now(), likes: 0, comments: 0, shares: 0, challenge: b.challenge ? ch.day : null, reports: [] };
   db.posts[p.id] = p; m.post = p.id; save();
   return { post: postOut(p, u) };
 });
@@ -364,7 +420,7 @@ r('DELETE', '/api/posts/:pid', async (req, p) => { const u = need(req); const x 
 r('POST', '/api/posts/:pid/like', async (req, p) => {
   const u = need(req); const x = db.posts[p.pid]; if (!x) bad('not_found', 404);
   const k = u.id + ':' + x.id;
-  if (db.likes[k]) { delete db.likes[k]; x.likes = Math.max(0, (x.likes || 0) - 1); } else { db.likes[k] = now(); x.likes = (x.likes || 0) + 1; }
+  if (db.likes[k]) { delete db.likes[k]; x.likes = Math.max(0, (x.likes || 0) - 1); } else { db.likes[k] = now(); x.likes = (x.likes || 0) + 1; hub?.notify(x.uid, { type: 'like', from: u.id, post: x.id }); }
   save(); return { liked: !!db.likes[k], likes: x.likes };
 });
 r('POST', '/api/posts/:pid/share', async (req, p) => { const x = db.posts[p.pid]; if (!x) bad('not_found', 404); x.shares = (x.shares || 0) + 1; save(); return { shares: x.shares, url: `${PUBLIC_URL}/p/${x.id}` }; });
@@ -377,6 +433,7 @@ r('POST', '/api/posts/:pid/comments', async (req, p) => {
   const { text } = await json(req); const t = String(text || '').trim().slice(0, 300);
   if (!t) bad('empty'); if (!check(t).ok) bad('unsafe_text', 422);
   const c = { id: id(9), post: x.id, uid: u.id, text: t, createdAt: now() }; db.comments[c.id] = c; x.comments = (x.comments || 0) + 1; save();
+  hub?.notify(x.uid, { type: 'comment', from: u.id, post: x.id, text: t.slice(0, 80) });
   return { comment: { id: c.id, text: c.text, createdAt: c.createdAt, user: { handle: u.handle, name: u.name, id: u.id, avatar: mediaUrl(u.avatar) }, mine: true }, comments: x.comments };
 });
 r('POST', '/api/posts/:pid/report', async (req, p) => {
@@ -392,11 +449,11 @@ r('POST', '/api/posts/:pid/report', async (req, p) => {
 r('GET', '/api/users/:handle', async (req, p) => {
   const viewer = authUser(req); const u = Object.values(db.users).find(x => x.handle === p.handle); if (!u) bad('not_found', 404);
   const posts = Object.values(db.posts).filter(x => x.uid === u.id && !x.hidden).sort((a, b) => b.createdAt - a.createdAt).map(x => postOut(x, viewer));
-  return { user: userPub(u, viewer), posts };
+  return { user: { ...userPub(u, viewer), blocked: viewer ? !!db.blocks?.[viewer.id + ':' + u.id] : false, live: [...(hub?.lives.values() || [])].find(L => L.host === u.id && L.hostConn)?.id || null }, posts };
 });
 r('POST', '/api/users/:handle/follow', async (req, p) => {
   const me_ = need(req); const u = Object.values(db.users).find(x => x.handle === p.handle); if (!u || u.id === me_.id) bad('not_found', 404);
-  const k = me_.id + ':' + u.id; if (db.follows[k]) delete db.follows[k]; else db.follows[k] = now();
+  const k = me_.id + ':' + u.id; if (db.follows[k]) delete db.follows[k]; else { if (db.blocks?.[u.id + ':' + me_.id] || db.blocks?.[k]) bad('blocked', 403); db.follows[k] = now(); hub?.notify(u.id, { type: 'follow', from: me_.id }); }
   save(); return { user: userPub(u, me_) };
 });
 
@@ -486,7 +543,9 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+let hub = null;
 await store.init();
+hub = rt.install({ r, need, authUser, bad, json, readBody, db, save, id, mediaUrl, server, store, check, isOwner });
 await seed();
 server.listen(PORT, () => console.log(`PRICO AI on :${PORT} provider=${providers.current().name} store=${store.backend()} payments=${payments.mode()}`));
 for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, async () => { try { await store.flushNow(); } catch {} process.exit(0); });

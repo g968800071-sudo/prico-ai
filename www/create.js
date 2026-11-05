@@ -34,6 +34,10 @@ function draw() {
   if (q) list = list.filter(x => (x.name + ' ' + x.id + ' ' + x.group).toLowerCase().includes(q));
   if (grp !== 'all') list = list.filter(x => x.group === grp);
   if (q || grp !== 'all') { const g = h('<div class="grid"></div>'); list.forEach(x => g.append(card(x))); body.append(g); if (!list.length) body.append(h(`<div class="empty" style="height:200px">🔍</div>`)); return; }
+  // quick tools (camera FX, editor, photo FX, LIVE)
+  const qt = h(`<div class="quick">${[['cam', '📸', 'plCamera'], ['edit', '✂️', 'plEditor'], ['pfx', '🪄', 'plPhotoFx'], ['live', '🔴', 'plLive']].map(([k, e, n]) => `<button data-k="${k}" class="qk qk-${k}"><b>${e}</b><span>${esc(t(n))}</span></button>`).join('')}</div>`);
+  $$('button', qt).forEach(b => b.onclick = async () => { haptic(); const k = b.dataset.k; if (k === 'cam') (await import('./camera.js')).openCamera(); else if (k === 'edit') (await import('./editor.js')).openEditor(); else if (k === 'pfx') (await import('./camera.js')).openPhotoFx(); else (await import('./live.js')).goLive(); });
+  body.append(qt);
   // challenge hero
   const ch = S.cat.challenge, ct = tpl(ch.tpl);
   if (ct) {
@@ -170,7 +174,7 @@ export async function progress(job, faceUrl) {
         shown = Math.max(shown, j.progress * 100, shown + (j.status === 'running' ? 1.2 : 0)); $('.bar i', el).style.width = Math.min(97, shown) + '%';
         $('.q', el).textContent = j.status === 'queued' && j.ahead ? t('inQueue', { n: j.ahead }) : '';
         if (j.status === 'done') { $('.bar i', el).style.width = '100%'; await sleep(350); return j.media; }
-        if (j.status === 'failed') throw Object.assign(new Error('generation_failed'), { code: j.error === 'unsafe' ? 'unsafe_prompt' : 'generation_failed' });
+        if (j.status === 'failed' || j.status === 'error') throw Object.assign(new Error('generation_failed'), { code: j.error === 'unsafe' ? 'unsafe_prompt' : 'generation_failed' });
       }
       await sleep(1100);
     }

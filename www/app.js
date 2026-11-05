@@ -4,8 +4,12 @@ import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, setToken, clos
 import { mountHome, pauseAll, resumeCur, reset as resetFeed } from './feed.js';
 import { mountCreate, openTemplate, manageFaces } from './create.js';
 import { mountReels, stopAudio } from './reelsui.js';
+import { mountInbox, updBadges, chatWith, refreshInbox } from './inbox.js';
+import { mountLive, goLive, watchLive, coinShop } from './live.js';
+import * as rt from './rt.js';
 
-const TABS = [['home', 'tabHome', 'home', 'homeF'], ['create', 'tabCreate', 'sparkle', 'sparkle'], ['reels', 'tabReels', 'plus', 'plus'], ['top', 'tabTop', 'trophy', 'trophyF'], ['me', 'tabMe', 'user', 'userF']];
+const TABS = [['home', 'tabHome', 'home', 'homeF'], ['create', 'tabCreate', 'sparkle', 'sparkle'], ['plus', 'tabNew', 'plus', 'plus'], ['inbox', 'tabInbox', 'comment', 'comment'], ['me', 'tabMe', 'user', 'userF']];
+const ROUTES = ['home', 'create', 'reels', 'top', 'live', 'inbox', 'me'];
 const mounted = {};
 
 export async function refreshMe() { if (!S.tok) { S.me = null; return null; } try { S.me = await api('/api/me', { quiet: true }); } catch (e) { if (e.status === 401) { setToken(''); S.me = null; } } updWallet(); return S.me; }
@@ -43,7 +47,7 @@ function openAuth(done, mode = 'signup') {
       const r = await api('/api/auth/' + (mode === 'signup' ? 'register' : 'login'), { body: { email: $('.em', body).value, password: $('.pw', body).value, name: $('.nm', body).value, lang: lang() } });
       setToken(r.token); S.me = r.me || await api('/api/me'); ok = true;
       if (S.me.lang && S.me.lang !== lang() && !localStorage.getItem('prico.lang')) { /* keep device language */ api('/api/me', { method: 'PATCH', body: { lang: lang() } }).catch(() => {}); }
-      updWallet(); sh.close(); haptic([10, 30, 10]); toast(mode === 'signup' ? '🎁 ' + t('freeVideos', { n: S.me.wallet.freeVideos }) : '👋 ' + S.me.name);
+      updWallet(); rt.reconnect(); sh.close(); haptic([10, 30, 10]); toast(mode === 'signup' ? '🎁 ' + t('freeVideos', { n: S.me.wallet.freeVideos }) : '👋 ' + S.me.name);
       if (mounted.me && S.route === 'me') drawMe(); done(S.me);
     } catch (er) { fail(er); go.disabled = false; }
   };
@@ -53,10 +57,11 @@ function openAuth(done, mode = 'signup') {
 export function go(r) { if (location.hash !== '#/' + r) location.hash = '#/' + r; else route(); }
 function route() {
   const r = (location.hash.slice(2) || 'home').split('/')[0];
-  const v = TABS.some(x => x[0] === r) ? r : 'home';
+  const v = ROUTES.includes(r) ? r : 'home';
   if (v === 'me' && !S.me) { needAuth().then(() => route()); if (S.route === 'me') return; }
   S.route = v;
-  $$('#tabs button').forEach(b => { const on = b.dataset.r === v; b.classList.toggle('on', on); const tb = TABS.find(x => x[0] === b.dataset.r); if (tb[0] !== 'reels') b.querySelector('.ic').innerHTML = I[on ? tb[3] : tb[2]]; });
+  const hv = v === 'reels' ? 'create' : v === 'top' || v === 'live' ? 'home' : v;
+  $$('#tabs button').forEach(b => { const on = b.dataset.r === hv; b.classList.toggle('on', on); const tb = TABS.find(x => x[0] === b.dataset.r); if (tb && tb[0] !== 'plus') b.querySelector('.ic').innerHTML = I[on ? tb[3] : tb[2]]; });
   $('#tabs').classList.toggle('dark', v === 'home');
   $$('.view').forEach(e => e.classList.toggle('on', e.id === 'v-' + v));
   $('#v-home').classList.add('full');
@@ -67,14 +72,34 @@ function route() {
   if (v === 'create' && !mounted.create) { mounted.create = 1; mountCreate(el); }
   if (v === 'reels' && !mounted.reels) { mounted.reels = 1; mountReels(el); }
   if (v === 'top') { mounted.top = 1; drawTop(); }
+  if (v === 'inbox') { if (!mounted.inbox) { mounted.inbox = 1; mountInbox(el); } else refreshInbox(); }
+  if (v === 'live') { if (!mounted.live) { mounted.live = 1; mountLive(el); } }
   if (v === 'me' && S.me) { mounted.me = 1; drawMe(); }
 }
 function remountAll() { for (const k of Object.keys(mounted)) delete mounted[k]; buildTabs(); route(); }
 function buildTabs() {
   const nav = $('#tabs');
-  nav.innerHTML = TABS.map(([r, k, ic]) => r === 'reels' ? `<button data-r="${r}" class="plus" aria-label="${esc(t(k))}"><span class="ic">${I.plus}</span></button>` : `<button data-r="${r}"><span class="ic" style="display:contents">${I[ic]}</span>${esc(t(k))}</button>`).join('');
-  $$('button', nav).forEach(b => b.onclick = () => { haptic(6); if (b.dataset.r === S.route && b.dataset.r === 'home') resetFeed(); go(b.dataset.r); });
+  nav.innerHTML = TABS.map(([r, k, ic]) => r === 'plus' ? `<button data-r="${r}" class="plus" aria-label="${esc(t(k))}"><span class="ic">${I.plus}</span></button>` : `<button data-r="${r}"><span class="ic" style="display:contents">${I[ic]}</span>${r === 'inbox' ? '<i class="tbdg"></i>' : ''}${esc(t(k))}</button>`).join('');
+  $$('button', nav).forEach(b => b.onclick = () => { haptic(6); if (b.dataset.r === 'plus') return openPlus(); if (b.dataset.r === S.route && b.dataset.r === 'home') resetFeed(); go(b.dataset.r); });
+  updBadges();
 }
+
+// ---------- + : create anything ----------
+export function openPlus() {
+  const items = [['cam', '📸', 'plCamera', 'plCameraD', 'hot'], ['edit', '✂️', 'plEditor', 'plEditorD', 'new'], ['live', '🔴', 'plLive', 'plLiveD', 'new'], ['ai', '✨', 'plTemplates', 'plTemplatesD'], ['reels', '🎬', 'plReels', 'plReelsD'], ['pfx', '🪄', 'plPhotoFx', 'plPhotoFxD', 'new']];
+  const body = h(`<div class="plusGrid">${items.map(([k, e, a, b, bd]) => `<button data-k="${k}" class="pl pl-${k}">${bd ? `<span class="badge ${bd}">${esc(t(bd === 'hot' ? 'hot' : 'isNew'))}</span>` : ''}<b>${e}</b><div><div class="pt">${esc(t(a))}</div><div class="mut xs">${esc(t(b))}</div></div></button>`).join('')}</div>`);
+  const sh = sheet({ title: t('plTitle'), body });
+  $$('button', body).forEach(b => b.onclick = async () => {
+    haptic(6); sh.close(); const k = b.dataset.k;
+    if (k === 'cam') (await import('./camera.js')).openCamera();
+    else if (k === 'edit') (await import('./editor.js')).openEditor();
+    else if (k === 'live') goLive();
+    else if (k === 'ai') go('create');
+    else if (k === 'reels') go('reels');
+    else if (k === 'pfx') (await import('./camera.js')).openPhotoFx();
+  });
+}
+export { go as goRoute };
 
 // ---------- Top / daily challenge ----------
 let timerT;
@@ -83,7 +108,7 @@ async function drawTop() {
   if (!el.firstChild) el.innerHTML = `<div class="pad"><div class="hdr"><h1>${esc(t('topTitle'))}</h1></div><div class="sk" style="height:260px;border-radius:24px"></div></div>`;
   try {
     const c = await api('/api/challenge');
-    el.innerHTML = `<div class="pad"><div class="hdr"><h1>${esc(t('topTitle'))}</h1><span class="sp"></span></div>
+    el.innerHTML = `<div class="pad"><div class="hdr"><button class="iconBtn bk" onclick="history.length > 1 ? history.back() : location.hash = '#/home'">${I.back}</button><h1>${esc(t('topTitle'))}</h1><span class="sp"></span></div>
       <div class="chHero"><img src="${abs(c.tpl.preview)}" alt=""><div class="in"><div class="badge hot" style="display:inline-block">🏆 ${esc(c.day)}</div>
       <h1 style="margin:8px 0 4px">${esc(c.tpl.emoji || '')} ${esc(c.name)}</h1><div class="row mut sm"><span class="timer"></span><span>·</span><span>${esc(t('entries', { n: c.entries }))}</span></div>
       <button class="btn pri wide join" style="margin-top:12px">${I.sparkle}<span>${esc(t('joinCh'))}</span></button></div></div>
@@ -107,8 +132,9 @@ async function drawMe() {
     <div class="stats"><div><b>${fmt(u.followers)}</b><span>${esc(t('followers'))}</span></div><div><b>${fmt(u.following)}</b><span>${esc(t('followingN'))}</span></div><div><b class="pc">–</b><span>${esc(t('posts'))}</span></div></div>
     <div class="row" style="justify-content:center"><button class="btn sm edit">${esc(t('editProfile'))}</button><button class="btn sm fcs">🤳 ${esc(t('facesTitle'))} · ${u.faces.length}/3</button></div></div>
     <div class="walletCard"><div style="font-size:30px">${u.wallet.plus ? '👑' : '🎬'}</div><div class="sp" style="position:relative"><div style="font-weight:800">${esc(u.wallet.plus ? t('plusActive') + (u.wallet.unlimited ? ' · ∞' : '') : t('freeVideos', { n: u.wallet.freeVideos }))}</div><div class="mut sm">${esc(t('credits', { n: u.wallet.credits }))} · 📸 ${u.wallet.photosLeft > 99 ? '∞' : u.wallet.photosLeft} · 🎞️ ${u.wallet.reelsLeft > 99 ? '∞' : u.wallet.reelsLeft}</div></div><button class="btn pri sm shop" style="position:relative">${esc(t(u.wallet.plus ? 'buy' : 'getPlus'))}</button></div>
+    <div class="walletCard coinsCard"><div style="font-size:28px">🪙</div><div class="sp"><div style="font-weight:800">${(u.coins || 0) >= 999999 ? '∞' : fmt(u.coins || 0)} ${esc(t('coins'))}</div><div class="mut sm">💎 ${fmt(u.diamonds || 0)} ${esc(t('diamonds'))} · ${esc(t('fromLive'))}</div></div><button class="btn sm coinB">➕ ${esc(t('getCoins'))}</button></div>
     <div class="ptabs"><button data-t="posts" class="on">${esc(t('posts'))}</button><button data-t="lib">${esc(t('creations'))}</button></div><div class="pgrid"></div></div>`;
-  $('.set', el).onclick = openSettings; $('.shop', el).onclick = () => openShop(); $('.fcs', el).onclick = manageFaces; $('.edit', el).onclick = editProfile;
+  $('.set', el).onclick = openSettings; $('.shop', el).onclick = () => openShop(); $('.coinB', el).onclick = () => coinShop(() => drawMe()); $('.fcs', el).onclick = manageFaces; $('.edit', el).onclick = editProfile;
   $('.avIn', el).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { S.me = await api('/api/me/avatar', { body: f, type: f.type }); drawMe(); } catch (er) { fail(er); } };
   const grid = $('.pgrid', el);
   const [pr, lr] = await Promise.all([api('/api/users/' + u.handle).catch(() => ({ posts: [] })), api('/api/library').catch(() => ({ items: [] }))]);
@@ -137,7 +163,11 @@ export async function openUser(handle) {
     const r = await api('/api/users/' + encodeURIComponent(handle)); const u = r.user;
     body.innerHTML = `<div class="prof"><img class="bigAva" src="${abs(u.avatar) || 'icons/icon-192.png'}" alt=""><h2 style="margin-top:10px">${esc(u.name)} ${u.verified ? `<span class="verified" style="display:inline-block;vertical-align:-2px">${I.verified}</span>` : ''}</h2>${u.bio ? `<div class="mut sm" style="margin-top:4px">${esc(u.bio)}</div>` : ''}
       <div class="stats"><div><b class="fc">${fmt(u.followers)}</b><span>${esc(t('followers'))}</span></div><div><b>${fmt(u.following)}</b><span>${esc(t('followingN'))}</span></div><div><b>${fmt(r.posts.length)}</b><span>${esc(t('posts'))}</span></div></div>
-      <button class="btn ${u.isFollowing ? '' : 'pri'} fol" style="min-width:160px">${esc(t(u.isFollowing ? 'unfollow' : 'follow'))}</button></div><div class="pgrid"></div>`;
+      ${u.live ? `<button class="btn pri wide lvB" style="margin:10px 0;background:#ff2d55">🔴 ${esc(t('watchLive'))}</button>` : ''}
+      <div class="row" style="justify-content:center"><button class="btn ${u.isFollowing ? '' : 'pri'} fol" style="min-width:140px" ${u.blocked ? 'disabled' : ''}>${esc(t(u.isFollowing ? 'unfollow' : 'follow'))}</button><button class="btn msgB" ${u.blocked ? 'disabled' : ''}>💬 ${esc(t('message'))}</button><button class="iconBtn blkB" aria-label="${esc(t('block'))}">🚫</button></div></div><div class="pgrid"></div>`;
+    const lvb = $('.lvB', body); if (lvb) lvb.onclick = () => { sh.close(); watchLive(u.live); };
+    $('.msgB', body).onclick = () => { sh.close(); chatWith(handle); };
+    $('.blkB', body).onclick = async () => { await needAuth(); if (!u.blocked && !confirm(t('blockConfirm'))) return; try { const x = await api(`/api/users/${handle}/block`, { method: 'POST' }); toast(x.blocked ? '🚫 ' + t('blocked') : '✓ ' + t('unblocked')); sh.close(); } catch (e) { fail(e); } };
     const fb = $('.fol', body);
     fb.onclick = async () => { await needAuth(); try { const x = await api(`/api/users/${handle}/follow`, { method: 'POST' }); fb.className = 'btn fol ' + (x.user.isFollowing ? '' : 'pri'); fb.textContent = t(x.user.isFollowing ? 'unfollow' : 'follow'); $('.fc', body).textContent = fmt(x.user.followers); haptic(); } catch (e) { fail(e); } };
     const g = $('.pgrid', body); r.posts.forEach(p => { const b = h(`<button><img src="${abs(p.poster)}" alt="" loading="lazy"><span class="lk">${I.heart}${fmt(p.likes)}</span></button>`); b.onclick = () => { sh.close(); openPost(p); }; g.append(b); });
@@ -154,7 +184,7 @@ function openSettings() {
     <button class="li sfty">${I.shield}<span class="sp">${esc(t('safety'))}</span>${I.chev}</button>
     <button class="li inst" style="${NATIVE ? 'display:none' : ''}">${I.download}<span class="sp">${esc(t('install'))}</span></button>
     <button class="li out">${I.logout}<span class="sp">${esc(t('logout'))}</span></button>
-    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.0.0 · © PRICOP.studio<br>AI: ${esc(S.cat.provider)}<br>${esc(t('credit'))}</div></div>`);
+    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.1.0 · © PRICOP.studio<br>AI: ${esc(S.cat.provider)}<br>${esc(t('credit'))}</div></div>`);
   const sh = sheet({ title: t('settings'), body, full: true });
   $$('.lg', body).forEach(b => b.onclick = async () => {
     const l = b.dataset.l; l === 'auto' ? localStorage.removeItem('prico.lang') : localStorage.setItem('prico.lang', l);
@@ -164,7 +194,7 @@ function openSettings() {
   });
   $('.sfty', body).onclick = () => sheet({ title: t('safety'), body: `<p style="line-height:1.55;margin-top:0">${esc(t('safetyText'))}</p>` });
   $('.inst', body).onclick = () => { if (deferredInstall) { deferredInstall.prompt(); deferredInstall = null; } else toast(/iP(hone|ad)/.test(navigator.userAgent) ? 'Safari → Share → Add to Home Screen' : 'Menu → Install app'); };
-  $('.out', body).onclick = async () => { await api('/api/auth/logout', { method: 'POST' }).catch(() => {}); setToken(''); S.me = null; sh.close(); remountAll(); go('home'); };
+  $('.out', body).onclick = async () => { await api('/api/auth/logout', { method: 'POST' }).catch(() => {}); setToken(''); S.me = null; rt.reconnect(); sh.close(); remountAll(); go('home'); };
 }
 let deferredInstall = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
@@ -220,6 +250,8 @@ async function boot() {
   if (deep) { try { const r = await api('/api/posts/' + deep[1]); history.replaceState(null, '', '/#/home'); route(); setTimeout(() => resetFeed(r.post), 30); } catch { history.replaceState(null, '', '/#/home'); route(); } }
   else route();
   if (q.get('tpl')) setTimeout(() => openTemplate(q.get('tpl')), 300);
+  if (q.get('live')) setTimeout(() => watchLive(q.get('live')), 300);
+  rt.connect();
   document.addEventListener('visibilitychange', () => document.hidden ? pauseAll() : resumeCur());
   if ('serviceWorker' in navigator && !NATIVE && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
   setTimeout(() => import('./seg.js').then(m => S.me && !S.me.faces.length && m.warmup()).catch(() => {}), 4000);

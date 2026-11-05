@@ -14,7 +14,7 @@ export const id = (n = 10) => crypto.randomBytes(n).toString('base64url').replac
 export async function init() {
   if (process.env.DATABASE_URL) {
     const { default: pgmod } = await import('pg');
-    pg = new pgmod.Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSL === 'off' ? false : { rejectUnauthorized: false }, max: 4 });
+    pg = new pgmod.Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSL === 'off' || /@[a-z0-9-]+(:\d+)?\//.test(process.env.DATABASE_URL) ? false : { rejectUnauthorized: false }, max: 4 });
     await pg.query('create table if not exists prico_doc (k text primary key, v jsonb not null)');
     await pg.query('create table if not exists prico_blob (id text primary key, mime text not null, data bytea not null, created timestamptz default now())');
     const r = await pg.query("select v from prico_doc where k='db'");

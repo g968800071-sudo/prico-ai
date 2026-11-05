@@ -1,0 +1,25 @@
+# PRICO AI on Render. Applying this Blueprint (with "adopt") links the existing prico-ai web service
+# to the existing prico-ai-db Postgres so data survives deploys. Nothing changes until it is approved.
+services:
+  - type: web
+    name: prico-ai
+    runtime: node
+    region: frankfurt
+    plan: free
+    branch: main
+    buildCommand: npm install && node node_modules/ffmpeg-static/install.js
+    startCommand: npm start
+    autoDeployTrigger: off
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: prico-ai-db
+          property: connectionString
+databases:
+  - name: prico-ai-db
+    plan: free
+    region: frankfurt
+    databaseName: prico_ai_db
+    user: prico_ai_db_user
+    postgresMajorVersion: "17"
+    ipAllowList: []

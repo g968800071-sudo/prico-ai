@@ -228,6 +228,95 @@ V('n_live', 'niche', '🔴', 'gamer', { motion: 'talk', music: 'trap', title: tr
 P('n_travel', 'niche', '✈️', 'dubai', { filter: 'warm', title: tr('TRAVEL VLOG|ТРЕВЕЛ-ВЛОГ|ТРЕВЕЛ-ВЛОГ|VLOG DE VIAJE|VLOG DE VIAGEM|REISE-VLOG|VLOG VOYAGE|SEYAHAT VLOG|مدونة سفر|ट्रैवल व्लॉग|VLOG TRAVEL') }, 'Travel vlog cover|Обложка тревел-влога|Обкладинка тревел-влогу|Portada vlog viaje|Capa vlog de viagem|Reise-Vlog-Cover|Couverture vlog voyage|Seyahat vlog kapağı|غلاف مدونة سفر|ट्रैवल व्लॉग कवर|Sampul vlog travel', 'the person as a travel vlogger at a luxury destination, thumbnail');
 V('n_music', 'niche', '🎧', 'kpop', { motion: 'dance', music: 'trap', title: tr('NEW SINGLE OUT NOW|НОВЫЙ СИНГЛ|НОВИЙ СИНГЛ|NUEVO SINGLE|NOVO SINGLE|NEUE SINGLE|NOUVEAU SINGLE|YENİ SINGLE|أغنية جديدة|नया सिंगल|SINGLE BARU') }, 'Music release promo|Промо релиза|Промо релізу|Promo lanzamiento|Promo de lançamento|Release-Promo|Promo de sortie|Yayın tanıtımı|ترويج إصدار|म्यूज़िक प्रोमो|Promo rilis', 'the person as a music artist on stage promoting a new single');
 
+// 🆕 Nov 2026 trend drop (TikTok/CapCut one-photo templates, checked 5–6 Nov 2026)
+V('v_fancycafe', 'viral', '☕', 'office', { motion: 'bounce', music: 'jazz', hot: true, isNew: true, title: tr('POV: first time in a fancy cafe|POV: впервые в модном кафе|POV: вперше в модному кафе|POV: primera vez en un café fancy|POV: primeira vez num café chique|POV: zum ersten Mal im Szene-Café|POV : première fois dans un café chic|POV: ilk kez lüks kafede|POV: أول مرة في مقهى فاخر|POV: पहली बार फैंसी कैफे में|POV: pertama kali ke kafe estetik') },
+  'First time in a fancy cafe|Впервые в модном кафе|Вперше в модному кафе|Primera vez en café fancy|Primeira vez no café chique|Erstes Mal im Szene-Café|Première fois au café chic|Lüks kafede ilk kez|أول مرة في مقهى فاخر|फैंसी कैफे में पहली बार|Pertama kali ke kafe estetik',
+  'minimalist concrete designer cafe, the person sits on a tiny round wall table as if it were a stool, a stylish stranger sits on the bench and puts a cup on the same table, the person slowly and awkwardly climbs down, deadpan comedy');
+V('v_24k', 'dance', '🛳️', 'pool', { motion: 'dance', music: 'disco', hot: true, isNew: true },
+  '24K Magic cruise dance|Танец 24K Magic на лайнере|Танець 24K Magic на лайнері|Baile 24K Magic en crucero|Dança 24K Magic no cruzeiro|24K-Magic-Tanz an Deck|Danse 24K Magic sur le paquebot|Gemide 24K Magic dansı|رقصة 24K Magic على السفينة|क्रूज़ पर 24K मैजिक डांस|Dansa 24K Magic di kapal pesiar',
+  'the person grins and taps fists to chest in a wood panelled ship cabin, then dances smoothly on a sunny cruise ship deck by the stairs, knee drops, sliding footwork, close-up of shoes');
+V('v_cwalk', 'dance', '👟', 'parking', { motion: 'dance', music: 'trap', hot: true, isNew: true },
+  'C-Walk AI|Си-уок ИИ|Сі-вок ШІ|C-Walk IA|C-Walk IA|C-Walk KI|C-Walk IA|C-Walk YZ|سي-ووك بالذكاء|सी-वॉक AI|C-Walk AI',
+  'the person doing a clean crip walk footwork dance in a supermarket aisle, heel-toe shuffles, V-steps, side slides and a spin, full body, funny');
+V('v_lionhug', 'viral', '🦁', 'park', { motion: 'hug', music: 'love', hot: true, isNew: true },
+  'Lion friend hug|Обнимашки со львом|Обійми з левом|Abrazo con el león|Abraço do leão|Umarmung mit dem Löwen|Câlin avec le lion|Aslanla sarılma|عناق الأسد|शेर दोस्त की झप्पी|Pelukan sahabat singa',
+  'a huge friendly lion walks up across a golden savanna and the person hugs it warmly, wholesome, cinematic golden hour');
+V('v_crying', 'viral', '🥲', 'nyc', { motion: 'kenburns', music: 'piano', isNew: true, title: tr('I\'m fine…|Я в порядке…|Я в порядку…|Estoy bien…|Tô bem…|Mir geht\'s gut…|Ça va…|İyiyim…|أنا بخير…|मैं ठीक हूँ…|Aku baik-baik saja…') },
+  'Crying farewell|Слёзное прощание|Сльозливе прощання|Despedida con lágrimas|Despedida emocionante|Tränenreicher Abschied|Adieu en larmes|Gözyaşlı veda|وداع بالدموع|आंसुओं भरी विदाई|Perpisahan haru',
+  'night street under warm street lamps, the person smiles bravely, the smile slowly breaks into tears, then they turn and walk away, emotional, cinematic rain');
+V('v_myride', 'viral', '🧹', 'moon', { motion: 'fly', music: 'halloween', isNew: true, title: tr('My ride is here|Моё такси приехало|Моє таксі приїхало|Llegó mi transporte|Meu transporte chegou|Mein Taxi ist da|Mon carrosse est là|Aracım geldi|وصلت مركبتي|मेरी सवारी आ गई|Jemputanku datang') },
+  'My ride is here (broom)|Улетаю на метле|Відлітаю на мітлі|Me voy en escoba|Vou de vassoura|Abflug auf dem Besen|Je m\'envole en balai|Süpürgeyle uçuyorum|أطير على المكنسة|झाड़ू पर उड़ान|Terbang naik sapu',
+  'the person glides past a car window riding a magic broomstick under a huge full moon, cape flowing, playful witch vibe');
+V('v_zombielove', 'couple', '🧟‍♀️', 'zombie', { motion: 'couple', music: 'drama', faces: 2, isNew: true },
+  'Zombie love story|Любовь и зомби|Кохання і зомбі|Historia de amor zombi|História de amor zumbi|Zombie-Liebesgeschichte|Histoire d\'amour zombie|Zombi aşk hikayesi|قصة حب الزومبي|ज़ोंबी लव स्टोरी|Kisah cinta zombi',
+  'foggy abandoned street, one person raises a bat at the other who is a friendly cartoon zombie, drops it, they hug, flash to a golden sunny day together, bittersweet, not gory');
+V('v_champagne', 'greeting', '🍾', 'birthday', { motion: 'bounce', music: 'birthday', hot: true, isNew: true, title: tr('Birthday mode|Режим: день рождения|Режим: день народження|Modo cumpleaños|Modo aniversário|Geburtstagsmodus|Mode anniversaire|Doğum günü modu|وضع عيد الميلاد|बर्थडे मोड|Mode ulang tahun') },
+  'Champagne birthday pop|Шампанское на ДР|Шампанське на ДН|Champán de cumpleaños|Champanhe de aniversário|Geburtstags-Champagner|Champagne d\'anniversaire|Doğum günü şampanyası|شمبانيا عيد الميلاد|बर्थडे शैंपेन पॉप|Sampanye ulang tahun',
+  'the person on a park bench pops a champagne bottle, spray in slow motion, freeze frame that drops to black and white, celebratory');
+V('v_enchant', 'transform', '🌙', 'moon', { motion: 'develop', music: 'cinema', filter: 'fantasy', hot: true, isNew: true },
+  'Moon witch transformation|Превращение в лунную ведьму|Перетворення на місячну відьму|Transformación bruja lunar|Transformação bruxa da lua|Verwandlung zur Mondhexe|Transformation sorcière lunaire|Ay cadısına dönüşüm|التحول إلى ساحرة القمر|चंद्र जादूगरनी ट्रांसफ़ॉर्म|Transformasi penyihir bulan',
+  'a dark gloved hand takes the person\'s hand and they transform into an elegant moon enchantress with a golden crescent crown, sparkles, dramatic');
+V('v_tinydesk', 'viral', '🎤', 'office', { motion: 'talk', music: 'jazz', isNew: true },
+  'Tiny desk concert|Концерт за столом|Концерт за столом|Concierto Tiny Desk|Show Tiny Desk|Tiny-Desk-Konzert|Concert Tiny Desk|Tiny Desk konseri|حفلة تايني ديسك|टाइनी डेस्क कॉन्सर्ट|Konser Tiny Desk',
+  'the person performs an outstanding soulful song at a cramped office desk surrounded by bookshelves and instruments, intimate live session, warm light');
+V('v_lobby', 'viral', '🏨', 'redcarpet', { motion: 'strut', music: 'runway', isNew: true },
+  'Hotel lobby walk|Проход по лобби отеля|Прохід лобі готелю|Paseo por el lobby|Desfile no lobby|Hotellobby-Walk|Défilé dans le hall|Otel lobisi yürüyüşü|مشية بهو الفندق|होटल लॉबी वॉक|Jalan di lobi hotel',
+  'the person walks confidently through a luxury marble hotel lobby in slow motion, staff turn heads, model attitude');
+V('fx_shatter', 'fx', '🪞', 'space', { motion: 'explode', music: 'epic', hot: true, isNew: true },
+  'Glass shatter|Разбиться как стекло|Розбитися як скло|Romperse como cristal|Quebrar como vidro|Zerspringen wie Glas|Se briser comme du verre|Cam gibi kırıl|تحطم كالزجاج|कांच की तरह बिखरना|Pecah seperti kaca',
+  'the person freezes and shatters into thousands of glowing glass shards that float in zero gravity, cinematic physics effect');
+V('fx_levitate', 'fx', '🧘', 'neon', { motion: 'float', music: 'synth', isNew: true },
+  'Levitation|Левитация|Левітація|Levitación|Levitação|Levitation|Lévitation|Havada süzülme|الطفو|लेविटेशन|Levitasi',
+  'the person slowly lifts off the ground and levitates in a neon room, hair and clothes floating, magical physics effect');
+V('fx_bullet', 'fx', '⏱️', 'stadium', { motion: 'crashzoom', music: 'phonk', isNew: true },
+  'Bullet time|Буллет-тайм|Буллет-тайм|Tiempo bala|Bullet time|Bullet Time|Bullet time|Bullet time|زمن الرصاصة|बुलेट टाइम|Bullet time',
+  'matrix style bullet time, the camera orbits 360 degrees around the person frozen mid-jump, debris hanging in the air');
+V('fx_earth', 'fx', '🌍', 'space', { motion: 'kenburns', music: 'cinema', isNew: true },
+  'Earth zoom out|Зум до космоса|Зум до космосу|Zoom hasta el espacio|Zoom até o espaço|Zoom bis ins All|Zoom jusqu\'à l\'espace|Uzaya zoom|تكبير إلى الفضاء|पृथ्वी ज़ूम आउट|Zoom ke luar angkasa',
+  'the camera zooms out from the person standing on a rooftop all the way to orbit, showing the city, the country and planet earth');
+V('d_thriller', 'dance', '🧟‍♂️', 'halloween', { motion: 'gang', music: 'halloween', faces: 3, isNew: true },
+  'Thriller graveyard dance|Танец «Триллер» на кладбище|Танець «Трилер»|Baile Thriller|Dança Thriller|Thriller-Tanz|Danse Thriller|Thriller dansı|رقصة ثريلر|थ्रिलर डांस|Tari Thriller',
+  'the people as funny costumed monsters doing the iconic synchronized zombie dance in a moonlit graveyard, playful, not scary');
+V('d_dime', 'dance', '💎', 'disco', { motion: 'dance', music: 'house', isNew: true },
+  'Dime dime baby dance|Танец «Dime baby»|Танець «Dime baby»|Baile Dime Baby|Dança Dime Baby|Dime-Baby-Tanz|Danse Dime Baby|Dime baby dansı|رقصة دايم بيبي|डाइम बेबी डांस|Tari Dime Baby',
+  'the person doing a sassy viral shoulder and hip dance in a glittery disco club, smooth, confident');
+P('p_magazine', 'avatar', '📰', 'runway', { filter: 'pastel', hot: true, isNew: true, title: tr('COVER STAR|ЗВЕЗДА ОБЛОЖКИ|ЗІРКА ОБКЛАДИНКИ|ESTRELLA DE PORTADA|ESTRELA DA CAPA|COVER-STAR|STAR DE LA UNE|KAPAK YILDIZI|نجم الغلاف|कवर स्टार|BINTANG SAMPUL') },
+  'Magazine cover|Обложка журнала|Обкладинка журналу|Portada de revista|Capa de revista|Magazin-Cover|Couverture de magazine|Dergi kapağı|غلاف مجلة|मैगज़ीन कवर|Sampul majalah',
+  'high fashion magazine cover portrait of the person, studio lighting, editorial styling, bold masthead');
+P('p_y2k', 'avatar', '📸', 'vintage', { filter: 'retro', isNew: true },
+  'Y2K yearbook photo|Фото из выпускного альбома 2000-х|Фото з випускного 2000-х|Foto anuario Y2K|Foto anuário Y2K|Y2K-Jahrbuchfoto|Photo d\'annuaire Y2K|Y2K yıllık fotoğrafı|صورة كتاب التخرج Y2K|Y2K ईयरबुक फोटो|Foto buku tahunan Y2K',
+  '2000s school yearbook portrait of the person, laser background, frosted tips or butterfly clips, soft flash, nostalgic');
+P('p_oldmoney', 'avatar', '🏛️', 'castle', { filter: 'warm', isNew: true },
+  'Old money portrait|Портрет «старые деньги»|Портрет «старі гроші»|Retrato old money|Retrato old money|Old-Money-Porträt|Portrait old money|Old money portre|بورتريه الثراء القديم|ओल्ड मनी पोर्ट्रेट|Potret old money',
+  'elegant old money aesthetic portrait of the person in cashmere and linen at a country estate, soft film tones, quiet luxury');
+P('p_renaissance', 'avatar', '🖼️', 'castle', { filter: 'sketch', isNew: true },
+  'Renaissance painting|Картина эпохи Возрождения|Картина доби Відродження|Pintura renacentista|Pintura renascentista|Renaissance-Gemälde|Peinture Renaissance|Rönesans tablosu|لوحة عصر النهضة|रेनेसां पेंटिंग|Lukisan Renaisans',
+  'the person as a classical renaissance oil painting portrait, ornate gold frame, dramatic chiaroscuro lighting');
+P('p_3dtoon', 'avatar', '🧸', 'toon', { filter: 'pop', hot: true, isNew: true },
+  '3D cartoon me|Я в 3D-мультике|Я в 3D-мультику|Yo en dibujo 3D|Eu em desenho 3D|Ich als 3D-Cartoon|Moi en dessin animé 3D|3D çizgi film ben|أنا كرتون ثلاثي الأبعاد|3D कार्टून मैं|Aku kartun 3D',
+  'the person as a cute 3D animated movie character with big expressive eyes, soft studio render, colorful');
+P('p_plush', 'toys', '🧸', 'nursery', { filter: 'toy', isNew: true },
+  'Plush toy me|Я — плюшевая игрушка|Я — плюшева іграшка|Yo de peluche|Eu de pelúcia|Ich als Plüschtier|Moi en peluche|Peluş oyuncak ben|أنا دمية قطيفة|प्लश टॉय मैं|Aku boneka',
+  'the person as an adorable fluffy plush toy sitting on a cozy shelf, soft fabric texture, stitched details');
+P('p_brick', 'toys', '🧱', 'figurebox', { filter: 'toy', isNew: true },
+  'Brick minifigure|Я — минифигурка из кубиков|Я — мініфігурка з кубиків|Minifigura de bloques|Minifigura de blocos|Bauklötzchen-Minifigur|Minifigurine en briques|Blok minifigür|مجسم مكعبات صغير|ब्रिक मिनीफ़िगर|Minifigur balok',
+  'the person as a plastic brick toy minifigure in a blister pack with accessories, glossy product photo');
+P('s_ny2027', 'season', '🥂', 'newyear', { filter: 'gold', hot: true, isNew: true, title: tr('HAPPY NEW YEAR 2027|С НОВЫМ 2027 ГОДОМ|З НОВИМ 2027 РОКОМ|FELIZ AÑO 2027|FELIZ 2027|FROHES 2027|BONNE ANNÉE 2027|MUTLU YILLAR 2027|سنة سعيدة 2027|नया साल 2027 मुबारक|SELAMAT TAHUN BARU 2027') },
+  'New Year 2027 portrait|Новогодний портрет 2027|Новорічний портрет 2027|Retrato Año Nuevo 2027|Retrato Ano Novo 2027|Neujahrsporträt 2027|Portrait Nouvel An 2027|Yılbaşı portresi 2027|بورتريه رأس السنة 2027|न्यू ईयर पोर्ट्रेट 2027|Potret Tahun Baru 2027',
+  'glamorous new year 2027 party portrait of the person with gold confetti, sparklers and champagne, festive bokeh');
+V('s_globe_v', 'season', '🔮', 'snowglobe', { motion: 'float', music: 'jingle', isNew: true },
+  'Me in a snow globe|Я в снежном шаре|Я в сніговій кулі|Yo en una bola de nieve|Eu num globo de neve|Ich in der Schneekugel|Moi dans une boule à neige|Kar küresinde ben|أنا في كرة الثلج|स्नो ग्लोब में मैं|Aku di bola salju',
+  'the person tiny inside a magical snow globe, someone shakes it and snow swirls around them, cozy christmas lights');
+V('s_fireworks', 'season', '🎆', 'year2027', { motion: 'goal', music: 'party', hot: true, isNew: true, title: tr('3… 2… 1… 2027!|3… 2… 1… 2027!|3… 2… 1… 2027!|3… 2… 1… ¡2027!|3… 2… 1… 2027!|3… 2… 1… 2027!|3… 2… 1… 2027 !|3… 2… 1… 2027!|3… 2… 1… 2027!|3… 2… 1… 2027!|3… 2… 1… 2027!') },
+  'New Year countdown 2027|Отсчёт до 2027|Відлік до 2027|Cuenta atrás 2027|Contagem 2027|Countdown 2027|Compte à rebours 2027|2027 geri sayım|العد التنازلي 2027|2027 काउंटडाउन|Hitung mundur 2027',
+  'the person counts down and jumps with joy as huge fireworks spell 2027 over the city skyline at midnight, confetti, cheering');
+V('v_agent', 'movie', '🕶️', 'nyc', { motion: 'action', music: 'cinema', isNew: true, title: tr('Agent 007… you|Агент 007… это ты|Агент 007… це ти|Agente 007… tú|Agente 007… você|Agent 007… du|Agent 007… toi|Ajan 007… sensin|العميل 007… أنت|एजेंट 007… आप|Agen 007… kamu') },
+  'Secret agent intro|Интро секретного агента|Інтро секретного агента|Intro agente secreto|Intro agente secreto|Geheimagenten-Intro|Intro agent secret|Gizli ajan girişi|مقدمة العميل السري|सीक्रेट एजेंट इंट्रो|Intro agen rahasia',
+  'spy movie title sequence, the person in a tuxedo walks out of smoke, turns to camera and adjusts cufflinks, gun barrel spiral, cinematic');
+V('v_podium', 'movie', '🏎️', 'stadium', { motion: 'goal', music: 'motiv', isNew: true },
+  'Race champion podium|Чемпион гонки на подиуме|Чемпіон перегонів на подіумі|Campeón en el podio|Campeão no pódio|Rennsieger auf dem Podium|Champion sur le podium|Yarış şampiyonu|بطل السباق على المنصة|रेस चैंपियन पोडियम|Juara balap di podium',
+  'the person as a racing driver on the winners podium spraying champagne, confetti cannons, stadium cheering, cinematic slow motion');
+
 const GROUPS = {
   viral: tr('🔥 Viral now|🔥 Тренды сейчас|🔥 Тренди зараз|🔥 Viral ahora|🔥 Viral agora|🔥 Gerade viral|🔥 Viral en ce moment|🔥 Şu an viral|🔥 رائج الآن|🔥 अभी वायरल|🔥 Lagi viral'),
   funny: tr('😂 Funny & memes|😂 Приколы и мемы|😂 Приколи та меми|😂 Humor y memes|😂 Humor e memes|😂 Lustig & Memes|😂 Drôle & mèmes|😂 Komik & mimler|😂 مضحك وميمز|😂 फनी और मीम्स|😂 Lucu & meme'),
@@ -255,5 +344,5 @@ const CHALLENGES = [
 ];
 const ORDER = ['viral', 'fx', 'dance', 'funny', 'couple', 'season', 'avatar', 'toys', 'transform', 'place', 'friends', 'greeting', 'movie', 'niche'];
 const G2 = Object.fromEntries([...ORDER.filter(k => GROUPS[k]), ...Object.keys(GROUPS).filter(k => !ORDER.includes(k))].map(k => [k, GROUPS[k]]));
-fs.writeFileSync('server/templates.json', JSON.stringify({ version: 3, updated: '2026-11-05', groups: G2, templates: T, challenges: CHALLENGES }, null, 1));
+fs.writeFileSync('server/templates.json', JSON.stringify({ version: 3, updated: '2026-11-06', groups: G2, templates: T, challenges: CHALLENGES }, null, 1));
 console.log(T.length, 'templates');

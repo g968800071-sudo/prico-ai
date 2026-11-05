@@ -13,7 +13,7 @@ export function walletChip() {
   const b = h(`<button class="wal walChip">${I.bolt}<b></b></button>`); b.querySelector('svg').style.cssText = 'width:15px;height:15px;color:var(--gold)';
   b.onclick = () => openShop(); fillWal(b); return b;
 }
-function fillWal(b) { const w = S.me && S.me.wallet; $('b', b).textContent = !w ? t('freeVideos', { n: 3 }) : w.plus ? 'Plus · ' + w.plusLeft : (w.freeVideos + w.credits) + ' 🎬'; }
+function fillWal(b) { const w = S.me && S.me.wallet; $('b', b).textContent = !w ? t('freeVideos', { n: 3 }) : w.plus ? 'Plus · ' + (w.unlimited ? '∞' : w.plusLeft) : (w.freeVideos + w.credits) + ' 🎬'; }
 function updWallet() { $$('.walChip').forEach(fillWal); }
 
 let authP = null;
@@ -106,7 +106,7 @@ async function drawMe() {
     <h2 style="margin-top:10px">${esc(u.name)} ${u.verified ? `<span class="verified" style="display:inline-block;vertical-align:-2px">${I.verified}</span>` : ''}</h2>${u.bio ? `<div class="mut sm" style="margin-top:4px">${esc(u.bio)}</div>` : ''}
     <div class="stats"><div><b>${fmt(u.followers)}</b><span>${esc(t('followers'))}</span></div><div><b>${fmt(u.following)}</b><span>${esc(t('followingN'))}</span></div><div><b class="pc">–</b><span>${esc(t('posts'))}</span></div></div>
     <div class="row" style="justify-content:center"><button class="btn sm edit">${esc(t('editProfile'))}</button><button class="btn sm fcs">🤳 ${esc(t('facesTitle'))} · ${u.faces.length}/3</button></div></div>
-    <div class="walletCard"><div style="font-size:30px">${u.wallet.plus ? '👑' : '🎬'}</div><div class="sp" style="position:relative"><div style="font-weight:800">${esc(u.wallet.plus ? t('plusActive') : t('freeVideos', { n: u.wallet.freeVideos }))}</div><div class="mut sm">${esc(t('credits', { n: u.wallet.credits }))} · 📸 ${u.wallet.photosLeft > 99 ? '∞' : u.wallet.photosLeft} · 🎞️ ${u.wallet.reelsLeft > 99 ? '∞' : u.wallet.reelsLeft}</div></div><button class="btn pri sm shop" style="position:relative">${esc(t(u.wallet.plus ? 'buy' : 'getPlus'))}</button></div>
+    <div class="walletCard"><div style="font-size:30px">${u.wallet.plus ? '👑' : '🎬'}</div><div class="sp" style="position:relative"><div style="font-weight:800">${esc(u.wallet.plus ? t('plusActive') + (u.wallet.unlimited ? ' · ∞' : '') : t('freeVideos', { n: u.wallet.freeVideos }))}</div><div class="mut sm">${esc(t('credits', { n: u.wallet.credits }))} · 📸 ${u.wallet.photosLeft > 99 ? '∞' : u.wallet.photosLeft} · 🎞️ ${u.wallet.reelsLeft > 99 ? '∞' : u.wallet.reelsLeft}</div></div><button class="btn pri sm shop" style="position:relative">${esc(t(u.wallet.plus ? 'buy' : 'getPlus'))}</button></div>
     <div class="ptabs"><button data-t="posts" class="on">${esc(t('posts'))}</button><button data-t="lib">${esc(t('creations'))}</button></div><div class="pgrid"></div></div>`;
   $('.set', el).onclick = openSettings; $('.shop', el).onclick = () => openShop(); $('.fcs', el).onclick = manageFaces; $('.edit', el).onclick = editProfile;
   $('.avIn', el).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { S.me = await api('/api/me/avatar', { body: f, type: f.type }); drawMe(); } catch (er) { fail(er); } };

@@ -50,6 +50,7 @@ Node ≥ 20. `ffmpeg-static` and `sharp` ship their binaries — no system packa
 | `FAL_VIDEO_MODEL` | `fal-ai/kling-video/v2.5-turbo/pro/image-to-video` | image-to-video model |
 | `JOB_CONCURRENCY` | 2 | parallel generation jobs |
 | `TEMPLATES_URL` | – | remote JSON catalog (same schema as `server/templates.json`) |
+| `OWNER_EMAILS` | `g968800071@gmail.com` | Comma-separated owner/admin emails: unlimited photos, videos and reels (Plus · ∞), no credits charged. Matched by email on every request, so it survives re-signup. Set to empty to disable |
 | `ADMIN_TOKEN` | – | enables `POST /api/admin/templates` (header `x-admin-token`) to reload the catalog |
 | `PAYMENTS_MODE` / `STRIPE_SECRET_KEY` | demo | Stripe hook placeholder; in-app stores need Google Play Billing / Apple IAP |
 

@@ -69,7 +69,12 @@ function userPub(u, viewer) {
     isFollowing: viewer ? !!db.follows[viewer.id + ':' + u.id] : false, isMe: viewer?.id === u.id,
     posts: Object.values(db.posts).filter(p => p.uid === u.id && !p.hidden).length };
 }
+// Owner / admin allowlist: unlimited everything (applies by email, so it survives re-signup on ephemeral storage).
+const OWNER_EMAILS = new Set(String(process.env.OWNER_EMAILS ?? 'g968800071@gmail.com').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
+const isOwner = u => !!(u && u.email && OWNER_EMAILS.has(String(u.email).toLowerCase()));
 function wallet(u) {
+  if (isOwner(u)) { if (u.photoDay !== today()) { u.photoDay = today(); u.photosToday = 0; u.reelsToday = 0; }
+    return { freeVideos: u.freeVideos, credits: u.credits, plus: true, unlimited: true, owner: true, plusUntil: 4102444800000, plusLeft: 9999, photosLeft: 9999, reelsLeft: 9999 }; }
   const plus = u.plus && u.plus.until > now();
   if (u.plus?.month !== month()) u.plus = { ...(u.plus || {}), month: month(), used: 0 };
   if (u.photoDay !== today()) { u.photoDay = today(); u.photosToday = 0; u.reelsToday = 0; }
@@ -270,7 +275,8 @@ r('POST', '/api/generate', async (req) => {
   while (fids.length < want) fids.push(fids[fids.length - 1]);
   if ([...jobs.values()].some(j => j.uid === u.id && (j.status === 'queued' || j.status === 'running'))) bad('busy', 429);
   const w = wallet(u); let charge;
-  if (t.kind === 'video') {
+  if (w.unlimited) charge = null;
+  else if (t.kind === 'video') {
     if (w.plus && w.plusLeft > 0) { u.plus.used++; charge = 'plus'; }
     else if (u.freeVideos > 0) { u.freeVideos--; charge = 'free'; }
     else if (u.credits > 0) { u.credits--; charge = 'credit'; }
@@ -321,8 +327,8 @@ r('POST', '/api/reels', async (req) => {
   if (!ups.length && !facesOf(u).length) bad('need_media');
   if ([...jobs.values()].some(j => j.uid === u.id && (j.status === 'queued' || j.status === 'running'))) bad('busy', 429);
   const w = wallet(u); if (!w.plus && w.reelsLeft <= 0) bad('reel_limit', 402);
-  u.reelsToday = (u.reelsToday || 0) + 1;
-  const j = { id: id(10), type: 'reel', uid: u.id, uploads: ups, niche: NICHES[b.niche] ? b.niche : 'funny', musicId: b.musicId, prompt, lines, subtitles: b.subtitles !== false, overlay: cleanOverlay(b.overlay), status: 'queued', created: now(), charge: 'reel' };
+  if (!w.unlimited) u.reelsToday = (u.reelsToday || 0) + 1;
+  const j = { id: id(10), type: 'reel', uid: u.id, uploads: ups, niche: NICHES[b.niche] ? b.niche : 'funny', musicId: b.musicId, prompt, lines, subtitles: b.subtitles !== false, overlay: cleanOverlay(b.overlay), status: 'queued', created: now(), charge: w.unlimited ? null : 'reel' };
   jobs.set(j.id, j); queue.push(j); save(); pump();
   return { job: jobOut(j), wallet: wallet(u) };
 });

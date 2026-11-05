@@ -1,0 +1,10 @@
+{
+  "appId": "studio.pricop.pricoai",
+  "appName": "PRICO AI",
+  "webDir": "www",
+  "android": { "backgroundColor": "#07070c", "allowMixedContent": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 900, "backgroundColor": "#07070c", "showSpinner": false, "launchAutoHide": true },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#07070c", "overlaysWebView": false }
+  }
+}

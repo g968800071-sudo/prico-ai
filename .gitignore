@@ -8,3 +8,6 @@ android/build/
 *.jks
 keystore.properties
 .env
+mobile/node_modules
+mobile/android
+mobile/www

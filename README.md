@@ -71,13 +71,15 @@ With Plus at 6.99 €/month and 40 videos max, worst-case AI cost ≈ $14 → se
 
 ## Android
 
-Capacitor wrapper in `android/` (appId `studio.pricop.pricoai`, label "PRICO AI", portrait, Share + Filesystem plugins). The app loads the bundled `www/` and talks to `https://prico-ai.onrender.com`.
+Capacitor 8 wrapper config lives in `mobile/` (appId `studio.pricop.pricoai`, label "PRICO AI", portrait, Share + Filesystem + StatusBar + SplashScreen). The app bundles `www/` (without `sw.js`) and talks to `https://prico-ai.onrender.com`.
 
 ```bash
-npx cap sync android && cd android && ./gradlew assembleRelease
+cd mobile && npm install && rm -rf www && cp -r ../www www && rm www/sw.js
+npx cap add android && npx cap sync android
+cd android && JAVA_HOME=/path/to/jdk21 ./gradlew assembleRelease
 ```
 
-Signing uses `android/keystore.properties` (not committed).
+Release signing reads a `keystore.properties` (storeFile, storePassword, keyAlias, keyPassword) referenced from `android/app/build.gradle`; the keystore and its properties are never committed. Back the keystore up — Play updates need the same key.
 
 ## Next steps
 

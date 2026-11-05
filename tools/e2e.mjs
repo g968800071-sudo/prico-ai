@@ -8,7 +8,7 @@ const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args
 const ctx = await b.newContext({ ...DEV[name], locale: loc });
 const p = await ctx.newPage(); const errs = [];
 p.on('pageerror', e => errs.push('PAGEERR ' + e.message)); p.on('console', m => m.type() === 'error' && errs.push('CONSOLE ' + m.text()));
-const shot = async n => { await p.waitForTimeout(700); await p.screenshot({ path: `shots/${name}-${n}.png` }); console.log('shot', n); };
+const shot = async n => { await p.waitForTimeout(700); await p.screenshot({ path: `${process.env.SHOTS||'shots'}/${name}-${n}.png` }); console.log('shot', n); };
 const tap = s => p.locator(s).first().click();
 const top = s => p.locator('.sheet.on').last().locator(s).first().click();
 await p.goto(URL_, { waitUntil: 'networkidle' });
@@ -27,12 +27,12 @@ await p.waitForSelector('.sheet .cons', { timeout: 15000 }); await p.waitForTime
 await top('.cons'); await top('.sf .btn.pri'); await p.waitForTimeout(2500);
 await p.locator('.sheet.on').last().locator('.ovIn').fill('Monday me 😂'); await top('.stkGrid button'); await shot('07-editor');
 await top('.go'); await p.waitForTimeout(1500); await shot('08-progress'); console.log('toast', await p.locator('#toast').textContent());
-await p.waitForSelector('.res', { timeout: 120000 }); await p.waitForTimeout(1500); await shot('09-result');
+await p.waitForSelector('.res', { timeout: +(process.env.GEN_TIMEOUT||120000) }); await p.waitForTimeout(1500); await shot('09-result');
 await top('.post'); await p.waitForTimeout(2500); await shot('10-feed-posted');
 await tap('#tabs button[data-r=reels]'); await p.waitForTimeout(1000); await shot('11-reels');
 await p.fill('.idea', 'Weekend in Lisbon with friends. Best tacos ever! Sunset on the river.');
 await tap('.nicheGrid button[data-n=travel]'); await tap('.mk');
-await p.waitForSelector('.res', { timeout: 180000 }); await p.waitForTimeout(2000); await shot('12-reel-result');
+await p.waitForSelector('.res', { timeout: +(process.env.GEN_TIMEOUT||180000) }); await p.waitForTimeout(2000); await shot('12-reel-result');
 await top('.x'); await p.waitForTimeout(500);
 await tap('#tabs button[data-r=top]'); await p.waitForTimeout(1500); await shot('13-top');
 await tap('#tabs button[data-r=me]'); await p.waitForTimeout(1500); await shot('14-me');

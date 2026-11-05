@@ -1,0 +1,5 @@
+<!doctype html><meta charset=utf-8><body style="background:#333"><script type=module>
+import { cutout } from '/seg.js';
+window.run = async (src) => { const im = new Image(); im.src = src; await im.decode(); const c = document.createElement('canvas'); c.width = c.height = 512; c.getContext('2d').drawImage(im, 0, 0, 512, 512); const b = await cutout(c); const fr = new FileReader(); return await new Promise(r => { fr.onload = () => r(fr.result); fr.readAsDataURL(b); }); };
+window.ready = true;
+</script>

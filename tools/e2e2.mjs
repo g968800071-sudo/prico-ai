@@ -43,7 +43,7 @@ await step('editor', async () => {
   const add = p.locator('.addFirst').first(); if (await add.count()) await add.click();
   const ch = await fc; if (ch) await ch.setFiles(['/tmp/live.webm', 'assets/seed/face2.jpg']);
   await p.waitForTimeout(5000); await shot('07-editor');
-  const tx = p.locator('button:has-text("Text"):visible').last(); if (await tx.count()) { await tx.click(); await p.waitForTimeout(1200); await shot('08-editor-text'); }
+  const tx = p.locator('.edTools button[data-k=text]').first(); if (await tx.count()) { await tx.click(); await p.waitForTimeout(1200); const ta = p.locator('.sheet.on textarea, .sheet.on input').first(); if (await ta.count()) { await ta.fill('POV: Monday 😂'); const ok = p.locator('.sheet.on .btn.pri').last(); if (await ok.count()) await ok.click(); } await p.waitForTimeout(1200); await shot('08-editor-text'); }
 }); await closeAll();
 await step('chat', async () => {
   const c = await api('/api/convs', Bo.token, { users: [A.me.handle] }); await api(`/api/convs/${c.conv?.id || c.id}/messages`, Bo.token, { type: 'text', text: 'Hey Mia! Loved your last video 😍' });

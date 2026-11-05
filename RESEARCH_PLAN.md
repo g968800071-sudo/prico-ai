@@ -22,3 +22,10 @@ Cross-cutting: everything in the 11 languages, owner unlimited (OWNER_EMAILS), p
 
 ## Deliberately not now
 PK battles, live shopping, 4K export and true AI lip-sync (they need paid GPU models; the code is ready to plug in fal.ai).
+
+## Added in this pass: Photo Studio (Remini/Lensa level)
+Remini and Lensa sit in the top-grossing lists on the strength of one-tap **HD enhance**, **AI avatars**, **background swap / "you anywhere"** and **cards**. PRICO now has a Photo Studio (+ menu → Photo Studio) with all four:
+- HD Enhance with a before/after slider. Free mode is on the server (sharp: 2K Lanczos upscale, denoise, CLAHE, clarity). With AI_PROVIDER=fal it switches to fal-ai/codeformer face restoration.
+- You anywhere: the cut-out is made on the phone, then placed into 22 scenes.
+- Greeting cards: 10 occasions, your photo plus your own text.
+- Avatars: jumps to the 15 avatar templates.

@@ -81,6 +81,8 @@ jobs:
           export UDID CONTAINER=""
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl spawn "$UDID" log stream --style compact --level info --predicate 'processImagePath ENDSWITH[c] "App" OR eventMessage CONTAINS "PRICO"' > "$RUNNER_TEMP/out/ios-console.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/log.pid"
           xcrun simctl install "$UDID" "$APP"
           BUNDLE=studio.pricop.pricoai
           xcrun simctl launch "$UDID" "$BUNDLE" || true
@@ -95,12 +97,29 @@ jobs:
           sleep 8
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/out/ios-cold-start.png" || true
           python3 - <<PY
-          import os, time, sys
+          import os, time, sys, glob, shutil
           p = os.environ["CONTAINER"] + "/Documents/prico-smoke.json"
+          out = os.environ["RUNNER_TEMP"] + "/out"
           for _ in range(840):
               if os.path.exists(p) and os.path.getsize(p) > 20:
                   sys.exit(0)
               time.sleep(1)
+          docs = os.environ["CONTAINER"] + "/Documents"
+          listing = []
+          for dirpath, _, files in os.walk(os.environ["CONTAINER"]):
+              for name in files:
+                  if name.startswith("prico") or name.endswith((".json", ".mp4", ".txt", ".log")):
+                      listing.append(os.path.join(dirpath, name))
+          open(out + "/ios-container.txt", "w").write("\n".join(listing))
+          crash_roots = [
+              os.path.expanduser("~/Library/Logs/DiagnosticReports"),
+              os.path.expanduser("~/Library/Developer/CoreSimulator/Devices/" + os.environ["UDID"] + "/data/Library/Logs/CrashReporter"),
+          ]
+          for root in crash_roots:
+              for path in glob.glob(root + "/*"):
+                  base = os.path.basename(path)
+                  if os.path.isfile(path) and os.path.getmtime(path) > time.time() - 3600 and any(s in base for s in ("App", "PRICO", "prico")):
+                      shutil.copy(path, out + "/" + base)
           sys.exit("device-mode smoke did not write prico-smoke.json")
           PY
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/out/ios-after-export.png" || true
@@ -169,6 +188,7 @@ jobs:
               raise SystemExit("online launch still presented on-phone mode")
           PY
           kill "$(cat "$RUNNER_TEMP/server.pid")" || true
+          kill "$(cat "$RUNNER_TEMP/log.pid")" || true
           xcrun simctl terminate "$UDID" "$BUNDLE" || true
       - uses: actions/upload-artifact@v4
         if: always()
@@ -186,6 +206,10 @@ jobs:
             ${{ runner.temp }}/out/ios-reel-probe.json
             ${{ runner.temp }}/out/ios-health.json
             ${{ runner.temp }}/out/ios-server.log
+            ${{ runner.temp }}/out/ios-console.log
+            ${{ runner.temp }}/out/ios-container.txt
+            ${{ runner.temp }}/out/*.ips
+            ${{ runner.temp }}/out/*.crash
             ${{ runner.temp }}/out/ios-before-launch.png
             ${{ runner.temp }}/out/ios-cold-start.png
             ${{ runner.temp }}/out/ios-after-export.png

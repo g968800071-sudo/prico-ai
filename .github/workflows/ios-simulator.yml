@@ -92,7 +92,7 @@ jobs:
           rm -f "$CONTAINER/Documents/prico-online" "$CONTAINER/Documents/prico-smoke.json"
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/out/ios-before-launch.png" || true
           xcrun simctl launch "$UDID" "$BUNDLE"
-          sleep 3
+          sleep 8
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/out/ios-cold-start.png" || true
           python3 - <<PY
           import os, time, sys
@@ -105,8 +105,12 @@ jobs:
           PY
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/out/ios-after-export.png" || true
           cp "$CONTAINER/Documents/prico-smoke.json" "$RUNNER_TEMP/out/ios-device-smoke.json"
+          python3 -m json.tool "$RUNNER_TEMP/out/ios-device-smoke.json"
           python3 - <<'PY'
           import json, os, shutil, glob
+          smoke = json.load(open(os.environ["RUNNER_TEMP"] + "/out/ios-device-smoke.json"))
+          if not smoke.get("ok"):
+              raise SystemExit("device export smoke failed: " + str(smoke.get("error")))
           container = os.environ["CONTAINER"]
           found = glob.glob(container + "/**/prico-export.mp4", recursive=True) + glob.glob(container + "/**/out.mp4", recursive=True)
           if not found:

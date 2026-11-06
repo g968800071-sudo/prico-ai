@@ -141,8 +141,17 @@ export async function runDeviceSmoke() {
   };
   try {
     const video = await fetch('offline/sample-clip.mp4');
-    if (!video.ok) throw Object.assign(new Error('bad_video'), { code: 'bad_video' });
-    const vurl = URL.createObjectURL(await video.blob());
+    if (!video.ok) throw Object.assign(new Error('bad_video'), { code: 'bad_video', detail: 'fetch ' + video.status });
+    const clipBytes = new Uint8Array(await video.arrayBuffer());
+    let vurl;
+    const Filesystem = window.Capacitor?.Plugins?.Filesystem;
+    if (Filesystem && window.Capacitor.convertFileSrc) {
+      let bin = '';
+      for (let i = 0; i < clipBytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, clipBytes.subarray(i, i + 0x8000));
+      await Filesystem.writeFile({ path: 'sample-clip.mp4', data: btoa(bin), directory: 'CACHE' });
+      const uri = await Filesystem.getUri({ path: 'sample-clip.mp4', directory: 'CACHE' });
+      vurl = window.Capacitor.convertFileSrc(uri.uri);
+    } else vurl = URL.createObjectURL(new Blob([clipBytes], { type: 'video/mp4' }));
     let musicUrl = 'offline/sample-tone.m4a';
     const tone = await fetch(musicUrl);
     if (!tone.ok) {
@@ -170,7 +179,7 @@ export async function runDeviceSmoke() {
     out.ok = exp.mime === 'video/mp4' && bytes.length > 800 && head.includes('66747970') && play.videoWidth === 540 && play.videoHeight === 960 && play.duration > 1 && out.persistence.read === true;
   } catch (e) {
     out.ok = false;
-    out.error = e && (e.code || e.message) || String(e);
+    out.error = [e && (e.code || e.message) || String(e), e && e.detail].filter(Boolean).join(' ');
   }
   if (S.apiBase && !S.device) {
     try { out.online = { attempted: true, ...(await onlineFlow()) }; }

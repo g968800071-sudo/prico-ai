@@ -65,7 +65,7 @@ async function loadSources(clips) {
     if (c.kind === 'video') {
       const v = document.createElement('video');
       v.src = c.url; v.muted = true; v.playsInline = true; v.preload = 'auto';
-      await new Promise((res, rej) => { v.onloadeddata = () => res(); v.onerror = () => rej(Object.assign(new Error('bad_video'), { code: 'bad_video' })); });
+      await new Promise((res, rej) => { v.onloadeddata = () => res(); v.onerror = () => rej(Object.assign(new Error('bad_video'), { code: 'bad_video', detail: (v.error && (v.error.message || v.error.code)) || 'element' })); });
       try { await v.play(); v.pause(); } catch {}
       sources.push(v);
     } else {

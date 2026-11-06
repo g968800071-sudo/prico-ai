@@ -28,7 +28,7 @@ async function playback(blob) {
   v.muted = true; v.playsInline = true; v.preload = 'auto';
   v.src = URL.createObjectURL(blob);
   await new Promise((res, rej) => { v.onloadedmetadata = () => res(); v.onerror = () => rej(new Error('playback')); });
-  const info = { videoWidth: v.videoWidth, videoHeight: v.videoHeight, duration: v.duration };
+  const info = { videoWidth: v.videoWidth || 0, videoHeight: v.videoHeight || 0, duration: Number.isFinite(v.duration) ? v.duration : 0 };
   URL.revokeObjectURL(v.src);
   return info;
 }
@@ -126,6 +126,7 @@ async function onlineFlow() {
 }
 
 export async function runDeviceSmoke() {
+  try {
   await waitReady();
   const home = (document.body?.innerText || '').slice(0, 700);
   const out = {
@@ -176,6 +177,9 @@ export async function runDeviceSmoke() {
     catch (e) { out.online = { attempted: true, ok: false, error: e && (e.message || e.code) || String(e) }; }
     if (out.online.deviceModeStillShowing) out.online.ok = false;
   }
-  return out;
+  return JSON.parse(JSON.stringify(out));
+  } catch (e) {
+    return { ok: false, error: String(e && (e.code || e.message) || e) };
+  }
 }
 

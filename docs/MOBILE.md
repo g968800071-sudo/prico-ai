@@ -1,12 +1,12 @@
 # PRICO AI native shells
 
-The Android package and the iOS project are Capacitor shells around `www/`. Version 1.4.0 (Android `versionCode` 4, iOS build 4). An empty `www/server.json` `apiBase` is the deliverable. `https://prico-ai.onrender.com` is refused.
+The Android package and the iOS project are Capacitor shells around `www/`. Version 1.5.0 (Android `versionCode` 5, iOS build 5). An empty `www/server.json` `apiBase` is the deliverable. `https://prico-ai.onrender.com` is refused.
 
 ## On this phone
 
 An empty address opens **on this phone** mode. Import, the editor, music, captions, a crossfade, and export stay on the device. Projects stay in IndexedDB on the phone. That mode does not include an account, the feed, messages, or LIVE. Real AI and payments stay off. Nothing is sent to a model.
 
-The export is encoded on the device as an MP4: H.264 video and AAC audio, 540×960 for 9:16. Android uses `MediaCodec` and `MediaMuxer`. iOS uses `AVAssetWriter`. The file is not a WebM recording with a renamed extension. A browser that is not the native shell can still record WebM, and that result is labeled `video/webm`.
+The export is encoded on the device as an MP4: H.264 video and AAC audio, 1080×1920 at 30 fps for 9:16. Chosen music is the bundled library file, read through the native bridge on iOS because fetch of media reports status 0. Android uses `MediaCodec` and `MediaMuxer`. iOS uses `AVAssetWriter`. The file is not a WebM recording with a renamed extension. A browser that is not the native shell can still record WebM, and that result is labeled `video/webm`.
 
 ## A server you choose
 

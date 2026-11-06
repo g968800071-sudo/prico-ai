@@ -111,33 +111,40 @@ async function renderPcm(musicUrl, duration) {
   const sampleRate = 44100;
   const channels = 2;
   const length = Math.max(1, Math.ceil(duration * sampleRate));
-  const ctx = new OfflineAudioContext(channels, length, sampleRate);
+  let decoded = null;
   let music = 'none';
   if (musicUrl) {
     const raw = await loadMusicBytes(musicUrl);
     const copy = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
-    const audio = await ctx.decodeAudioData(copy);
-    const src = ctx.createBufferSource();
-    src.buffer = audio;
-    src.loop = true;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.55;
-    src.connect(gain);
-    gain.connect(ctx.destination);
-    src.start(0);
+    const probe = new OfflineAudioContext(channels, sampleRate, sampleRate);
+    decoded = await probe.decodeAudioData(copy);
     music = /offline\/music\//.test(musicUrl) ? 'library' : 'file';
   }
-  const rendered = await ctx.startRendering();
-  const rate = rendered.sampleRate || sampleRate;
   const pcm = new Int16Array(length * channels);
-  for (let c = 0; c < channels; c++) {
-    const ch = rendered.getChannelData(Math.min(c, rendered.numberOfChannels - 1));
-    for (let i = 0; i < length; i++) {
-      const s = Math.max(-1, Math.min(1, ch[i] || 0));
-      pcm[i * channels + c] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  const slice = sampleRate * 10;
+  for (let offset = 0; offset < length; offset += slice) {
+    const count = Math.min(slice, length - offset);
+    const ctx = new OfflineAudioContext(channels, count, sampleRate);
+    if (decoded) {
+      const src = ctx.createBufferSource();
+      src.buffer = decoded;
+      src.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = 0.55;
+      src.connect(gain);
+      gain.connect(ctx.destination);
+      src.start(0, (offset / sampleRate) % decoded.duration);
+    }
+    const rendered = await ctx.startRendering();
+    for (let c = 0; c < channels; c++) {
+      const ch = rendered.getChannelData(Math.min(c, rendered.numberOfChannels - 1));
+      for (let i = 0; i < count; i++) {
+        const s = Math.max(-1, Math.min(1, ch[i] || 0));
+        pcm[(offset + i) * channels + c] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      }
     }
   }
-  return { pcm, sampleRate: rate, channels, music };
+  return { pcm, sampleRate, channels, music };
 }
 
 function bytesToB64(bytes) {

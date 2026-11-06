@@ -36,7 +36,7 @@ export async function openStudio(tab = 'enhance') {
 
   const views = {
     async enhance() {
-      B.innerHTML = `<div class="stHint">${esc(t('stEnhanceD'))} <span class="badge ${meta.enhance === 'ai' ? 'hot' : 'new'}">${meta.enhance === 'ai' ? 'AI' : t('free')}</span></div><div class="stStage">${picker(t('stEnhanceHint'))}</div>`;
+      B.innerHTML = `<div class="stHint">${esc(t('stEnhanceD'))} <span class="badge new">${esc(t('localBadge'))}</span></div><div class="stHint mut xs">${esc(t('localEnhanceNote'))}</div><div class="stStage">${picker(t('stEnhanceHint'))}</div>`;
       const st = $('.stStage', B);
       $('.stPick', B).onclick = async () => {
         const f = await pick(); if (!f) return; let c; try { c = await toCanvas(f, 1600); } catch { return toast(t('e_bad_image')); }
@@ -51,7 +51,7 @@ export async function openStudio(tab = 'enhance') {
       };
     },
     async anywhere() {
-      B.innerHTML = `<div class="stHint">${esc(t('stAnywhereD'))}</div><div class="stStage">${picker(t('stPersonHint'))}</div>`;
+      B.innerHTML = `<div class="stHint">${esc(t('stAnywhereD'))}</div><div class="stHint mut xs">${esc(t('compositeNote'))}</div><div class="stStage">${picker(t('stPersonHint'))}</div>`;
       const st = $('.stStage', B);
       $('.stPick', B).onclick = async () => {
         const f = await pick(); if (!f) return; const c = await toCanvas(f, 1280).catch(() => null); if (!c) return toast(t('e_bad_image'));

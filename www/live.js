@@ -11,7 +11,7 @@ let root = null, listT = 0;
 
 export function mountLive(el) {
   root = el;
-  el.innerHTML = `<div class="pad"><div class="hdr"><h1>🔴 ${esc(t('live'))}</h1><span class="sp"></span><button class="btn pri sm go">${esc(t('goLive'))}</button></div><div class="liveGrid"></div><div class="lbl">🏆 ${esc(t('topGifters'))}</div><div class="gtop"></div></div>`;
+  el.innerHTML = `<div class="pad"><div class="hdr"><h1>🔴 ${esc(t('live'))}</h1><span class="sp"></span><button class="btn pri sm go">${esc(t('goLive'))}</button></div><div class="mut xs scopeNote">${esc(t('liveScope'))}</div><div class="liveGrid"></div><div class="lbl">🏆 ${esc(t('topGifters'))}</div><div class="gtop"></div></div>`;
   $('.go', el).onclick = () => goLive();
   drawList(); clearInterval(listT); listT = setInterval(() => { if (S.route === 'live') drawList(); }, 10000);
 }
@@ -66,7 +66,7 @@ export async function goLive() {
   const fx = await import('./fx.js');
   let cam;
   const pre = h(`<div class="lv on prep"><div class="lvStage"><div class="camMsg">${esc(t('camStarting'))}</div></div><div class="lvTop"><span class="sp"></span><button class="iconBtn flipB">🔄</button><button class="iconBtn x">${I.close}</button></div>
-    <div class="prepBox"><input class="field ttl" maxlength="80" placeholder="${esc(t('liveTitlePh'))}"><div class="fxRow hscroll"></div><button class="btn pri wide start">🔴 ${esc(t('goLive'))}</button><div class="mut xs" style="text-align:center">${esc(t('liveRules'))}</div></div></div>`);
+    <div class="prepBox"><input class="field ttl" maxlength="80" placeholder="${esc(t('liveTitlePh'))}"><div class="fxRow hscroll"></div><button class="btn pri wide start">🔴 ${esc(t('goLive'))}</button><div class="mut xs" style="text-align:center">${esc(t('liveScope'))}</div><div class="mut xs" style="text-align:center">${esc(t('liveRules'))}</div></div></div>`);
   document.body.append(pre);
   let cancelled = false;
   $('.x', pre).onclick = () => { cancelled = true; cam && cam.stop(); pre.remove(); };
@@ -191,7 +191,7 @@ export async function coinShop(after) {
     const r = await api('/api/shop'); const packs = r.products.filter(p => p.kind === 'coins');
     const { lang } = await import('./i18n.js');
     const money = p => new Intl.NumberFormat(lang(), { style: 'currency', currency: p.currency }).format(p.price);
-    body.innerHTML = `<div class="coinGrid">${packs.map(p => `<button class="coinPack ${p.best ? 'best' : ''}" data-p="${p.id}">${p.best ? `<span class="badge hot">${esc(t('best'))}</span>` : ''}<b>🪙 ${fmt(p.coins)}</b><span class="price">${money(p)}</span></button>`).join('')}</div>${r.mode === 'demo' ? `<div class="mut xs" style="text-align:center;margin-top:14px">🧪 ${esc(t('demoPay'))}</div>` : ''}`;
-    $$('[data-p]', body).forEach(b => b.onclick = async () => { b.disabled = true; try { await api('/api/shop/buy', { body: { productId: b.dataset.p } }); confetti(); toast('🪙 ' + t('bought')); await refreshMe(); sh.close(); after && after(); } catch (e) { fail(e); b.disabled = false; } });
+    body.innerHTML = `<div class="payNote">${esc(t('paymentsPostponed'))}</div><div class="coinGrid">${packs.map(p => `<button class="coinPack ${p.best ? 'best' : ''}" data-p="${p.id}">${p.best ? `<span class="badge hot">${esc(t('best'))}</span>` : ''}<b>🪙 ${fmt(p.coins)}</b><span class="price">${money(p)}</span></button>`).join('')}</div><div class="mut xs" style="text-align:center;margin-top:14px">${esc(t('paymentsPostponedShort'))}</div>`;
+    $$('[data-p]', body).forEach(b => b.onclick = async () => { b.disabled = true; try { await api('/api/shop/buy', { body: { productId: b.dataset.p } }); toast(t('e_payments_postponed'), true); } catch (e) { toast(e.code === 'payments_postponed' ? t('e_payments_postponed') : (await import('./core.js')).errMsg(e), true); } finally { b.disabled = false; } });
   } catch (e) { fail(e); }
 }

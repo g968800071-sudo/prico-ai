@@ -16,7 +16,7 @@ export function mountReels(el) {
     <div class="lbl">${esc(t('idea'))}</div><textarea class="field idea" maxlength="300" placeholder="${esc(t('ideaPh'))}"></textarea>
     <button class="row subsT" style="margin-top:14px;width:100%;padding:12px 14px;background:var(--card);border-radius:14px"><span>💬</span><span class="sp" style="text-align:start;font-weight:650">${esc(t('subtitles'))}</span><span class="toggle ${subs ? 'on' : ''}"></span></button>
     <button class="btn pri wide mk" style="margin-top:18px">${I.sparkle}<span>${esc(t('makeReel'))}</span></button>
-    <div class="mut xs" style="text-align:center;margin-top:10px">MP4 · 9:16 · 1080×1920 · ♫ royalty-free</div>
+    <div class="mut xs" style="text-align:center;margin-top:10px">${esc(t('localReelNote'))}</div>
   </div>`;
   $('.walSlot', el).replaceWith(walletChip());
   drawTray(); drawNiches(); drawMusic();

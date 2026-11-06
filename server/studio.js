@@ -1,6 +1,5 @@
-// Photo Studio (Remini/Lensa-style tools): HD enhance, background swap, greeting cards.
-// Free mode runs fully on the server with sharp. Set AI_PROVIDER=fal + FAL_KEY to switch Enhance to a real
-// face-restoration / upscale model (FAL_ENHANCE_MODEL, default fal-ai/codeformer ≈ $0.002–0.01 per image).
+// Photo Studio: local sharpen, cutout-on-background, and greeting cards.
+// These are not generative AI. Enhance stays local until an upscaler schema is verified.
 import sharp from 'sharp';
 import { watermark, demoPhoto } from './render.js';
 sharp.concurrency(1); sharp.cache({ memory: 32, items: 20 });
@@ -34,21 +33,10 @@ async function enhanceFree(buf) {
     .sharpen({ sigma: small ? 1.4 : 1.0, m1: 0.6, m2: 2.2 })
     .jpeg({ quality: 94 }).toBuffer();
 }
-async function enhanceFal(buf) {
-  const key = process.env.FAL_KEY; const model = process.env.FAL_ENHANCE_MODEL || 'fal-ai/codeformer';
-  const small = await sharp(buf).rotate().resize(1280, 1280, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 92 }).toBuffer();
-  const h = { Authorization: `Key ${key}`, 'Content-Type': 'application/json' };
-  const r = await fetch(`https://fal.run/${model}`, { method: 'POST', headers: h, body: JSON.stringify({ image_url: `data:image/jpeg;base64,${small.toString('base64')}`, fidelity: 0.6, upscaling: 2, face_upscale: true }) });
-  if (!r.ok) throw new Error('fal enhance ' + r.status);
-  const j = await r.json(); const url = j.image?.url || j.images?.[0]?.url; if (!url) throw new Error('fal enhance: no image');
-  return Buffer.from(await (await fetch(url)).arrayBuffer());
-}
-export const enhanceMode = () => ((process.env.AI_PROVIDER || '').toLowerCase() === 'fal' && process.env.FAL_KEY ? 'ai' : 'free');
+// Local sharpen only. An unverified upscaler is not called, and a failed AI call is not replaced with this.
+export const enhanceMode = () => 'local';
 export async function enhance(buf, opts = {}) {
-  let out;
-  if (enhanceMode() === 'ai') { try { out = await enhanceFal(buf); } catch (e) { console.warn('[studio]', e.message); } }
-  out ||= await enhanceFree(buf);
-  return mark(out, opts);
+  return mark(await enhanceFree(buf), opts);
 }
 // Background swap / "you anywhere": the person cut-out (made on-device) placed into a scene.
 export async function bgSwap(cut, scene, lang, opts = {}) {

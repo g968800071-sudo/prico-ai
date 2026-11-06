@@ -97,18 +97,32 @@ async function renderPcm(musicUrl, duration) {
   let music = false;
   if (musicUrl) {
     try {
-      const raw = await (await fetch(musicUrl)).arrayBuffer();
-      const audio = await ctx.decodeAudioData(raw.slice(0));
-      const src = ctx.createBufferSource();
-      src.buffer = audio;
-      src.loop = true;
-      const gain = ctx.createGain();
-      gain.gain.value = 0.45;
-      src.connect(gain);
-      gain.connect(ctx.destination);
-      src.start(0);
-      music = true;
+      const res = await fetch(musicUrl);
+      if (res.ok) {
+        const audio = await ctx.decodeAudioData(await res.arrayBuffer());
+        const src = ctx.createBufferSource();
+        src.buffer = audio;
+        src.loop = true;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.45;
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(0);
+        music = 'file';
+      }
     } catch { music = false; }
+  }
+  if (!music) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.2;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(0);
+    osc.stop(Math.max(0.2, duration));
+    music = 'tone';
   }
   const rendered = await ctx.startRendering();
   const rate = rendered.sampleRate || sampleRate;

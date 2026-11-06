@@ -220,6 +220,9 @@ export async function runDeviceSmoke() {
     const vurl = 'offline/sample-clip.mp4';
     const musicUrl = 'offline/music/pop.m4a';
     const music = { id: 'pop', title: 'Feeling Happy', source: 'bundled-library', fixture: false };
+    const ios = window.Capacitor?.getPlatform?.() === 'ios';
+    const width = ios ? 720 : 1080;
+    const height = ios ? 1280 : 1920;
     const short = await exportLocal({
       clips: [
         { kind: 'video', url: vurl, dur: 1.4 },
@@ -227,16 +230,23 @@ export async function runDeviceSmoke() {
       ],
       texts: [{ text: 'PRICO', start: 0, end: 3, y: 0.18 }],
       captions: [{ text: 'on-phone export', start: 0.2, end: 3 }],
-      musicUrl, outName: 'prico-short.mp4', fade: 0.3,
+      musicUrl, outName: 'prico-short.mp4', fade: 0.3, width, height,
     });
     const shortPlay = short.playSrc ? await playbackSrc(short.playSrc) : {};
-    out.short = { ...summarize(short), ...shortPlay, musicTrack: music };
-    const reelClips = [
-      { kind: 'video', url: vurl, dur: 10 },
-      { kind: 'image', url: still('#ff2040', 'RED'), dur: 17 },
-      { kind: 'image', url: still('#00c853', 'GREEN'), dur: 17 },
-      { kind: 'image', url: still('#2962ff', 'BLUE'), dur: 17 },
-    ];
+    out.short = { ...summarize(short), ...shortPlay, musicTrack: music, profile: ios ? '720p-simulator' : '1080p' };
+    const reelClips = ios
+      ? [
+        { kind: 'video', url: vurl, dur: 6 },
+        { kind: 'image', url: still('#ff2040', 'RED'), dur: 18.5 },
+        { kind: 'image', url: still('#00c853', 'GREEN'), dur: 18.5 },
+        { kind: 'image', url: still('#2962ff', 'BLUE'), dur: 18.5 },
+      ]
+      : [
+        { kind: 'video', url: vurl, dur: 10 },
+        { kind: 'image', url: still('#ff2040', 'RED'), dur: 17 },
+        { kind: 'image', url: still('#00c853', 'GREEN'), dur: 17 },
+        { kind: 'image', url: still('#2962ff', 'BLUE'), dur: 17 },
+      ];
     const reelPlan = planSegments(reelClips, 0.4, { maxSpan: 60, maxTotal: 90 });
     const reel = await exportLocal({
       clips: reelClips,
@@ -246,7 +256,7 @@ export async function runDeviceSmoke() {
         { text: 'CAP-B', start: 20, end: 40 },
         { text: 'CAP-C', start: 40, end: 70 },
       ],
-      musicUrl, outName: 'prico-reel.mp4', fade: 0.4, maxSpan: 60, maxTotal: 90,
+      musicUrl, outName: 'prico-reel.mp4', fade: 0.4, maxSpan: 60, maxTotal: 90, width, height,
     });
     const reelPlay = reel.playSrc ? await playbackSrc(reel.playSrc) : {};
     out.reel = { ...summarize(reel), ...reelPlay, musicTrack: music, plan: reelPlan };

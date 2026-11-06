@@ -249,7 +249,7 @@ enum PricoReelExporter {
             if !adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))) {
                 throw writer.error ?? PricoReelError.message("append video \(frame)")
             }
-            if frame == 0 || frame % 300 == 0 {
+            if frame == 0 || frame % 15 == 0 || frame + 1 == frames {
                 NSLog("PRICO export frame %d/%d draws %d ms %d", frame, frames, draws, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
             }
         }

@@ -1,6 +1,7 @@
-# Unsigned iOS Simulator build and launch on GitHub's standard macos-latest runner.
-# Public repositories: standard hosted runners, including macos-latest, are free.
-# This does not use a larger runner, does not sign, and does not produce an installable IPA.
+# Unsigned iOS Simulator build on a standard Intel macOS runner.
+# Public repositories: standard runners are free. macos-26-intel is the documented
+# 4-core / 14 GB x64 label. This is not macos-latest (arm64), not macos-26-large,
+# and not an xlarge runner. It does not sign and does not produce an IPA.
 name: iOS simulator
 
 on:
@@ -13,13 +14,25 @@ permissions:
 
 jobs:
   simulator:
-    runs-on: macos-latest
+    runs-on: macos-26-intel
     timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Record the runner
+        run: |
+          {
+            echo "label=macos-26-intel"
+            uname -m
+            sw_vers
+            sysctl -n machdep.cpu.brand_string || true
+            sysctl -n hw.ncpu hw.memsize
+            xcodebuild -version
+          } | tee "$RUNNER_TEMP/ios-host.txt"
+          mkdir -p "$RUNNER_TEMP/out"
+          cp "$RUNNER_TEMP/ios-host.txt" "$RUNNER_TEMP/out/ios-host.txt"
       - name: Install dependencies
         run: |
           npm install
@@ -206,6 +219,7 @@ jobs:
             ${{ runner.temp }}/out/ios-reel-probe.json
             ${{ runner.temp }}/out/ios-health.json
             ${{ runner.temp }}/out/ios-server.log
+            ${{ runner.temp }}/out/ios-host.txt
             ${{ runner.temp }}/out/ios-console.log
             ${{ runner.temp }}/out/ios-container.txt
             ${{ runner.temp }}/out/*.ips

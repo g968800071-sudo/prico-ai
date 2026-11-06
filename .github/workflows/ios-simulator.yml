@@ -14,7 +14,7 @@ permissions:
 jobs:
   simulator:
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -97,7 +97,7 @@ jobs:
           python3 - <<PY
           import os, time, sys
           p = os.environ["CONTAINER"] + "/Documents/prico-smoke.json"
-          for _ in range(180):
+          for _ in range(900):
               if os.path.exists(p) and os.path.getsize(p) > 20:
                   sys.exit(0)
               time.sleep(1)
@@ -112,14 +112,15 @@ jobs:
           if not smoke.get("ok"):
               raise SystemExit("device export smoke failed: " + str(smoke.get("error")))
           container = os.environ["CONTAINER"]
-          found = glob.glob(container + "/**/prico-export.mp4", recursive=True) + glob.glob(container + "/**/out.mp4", recursive=True)
-          if not found:
-              raise SystemExit("no mp4 in the simulator container")
-          found.sort(key=os.path.getsize, reverse=True)
-          shutil.copy(found[0], os.environ["RUNNER_TEMP"] + "/out/ios-export.mp4")
-          print("copied", found[0], os.path.getsize(found[0]))
+          for name in ("prico-short.mp4", "prico-reel.mp4"):
+              found = glob.glob(container + "/**/" + name, recursive=True)
+              if not found:
+                  raise SystemExit("missing " + name)
+              shutil.copy(found[0], os.environ["RUNNER_TEMP"] + "/out/ios-" + name)
+              print("copied", name, os.path.getsize(found[0]))
           PY
-          node tools/probe-export.mjs "$RUNNER_TEMP/out/ios-export.mp4" | tee "$RUNNER_TEMP/out/ios-export-probe.json"
+          node tools/check-reel.mjs "$RUNNER_TEMP/out/ios-prico-short.mp4" --music assets/music/pop.m4a --min-duration 1.5 | tee "$RUNNER_TEMP/out/ios-short-probe.json"
+          node tools/check-reel.mjs "$RUNNER_TEMP/out/ios-prico-reel.mp4" --music assets/music/pop.m4a --min-duration 50 --reel | tee "$RUNNER_TEMP/out/ios-reel-probe.json"
           mkdir -p "$RUNNER_TEMP/prico-data"
           DATA_DIR="$RUNNER_TEMP/prico-data" node server/index.js > "$RUNNER_TEMP/out/ios-server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/server.pid"
@@ -156,8 +157,8 @@ jobs:
           out = os.environ["RUNNER_TEMP"] + "/out"
           device = json.load(open(out + "/ios-device-smoke.json"))
           online = json.load(open(out + "/ios-online-smoke.json"))
-          print("device ok", device.get("ok"), "mode", device.get("deviceMode"), "export", (device.get("export") or {}).get("mime"), (device.get("export") or {}).get("videoWidth"))
-          print("online", json.dumps(online.get("online"), indent=2)[:2000])
+          print("device ok", device.get("ok"), "short", (device.get("short") or {}).get("videoWidth"), "reel", (device.get("reel") or {}).get("duration"), (device.get("reel") or {}).get("music"))
+          print("online", json.dumps(online.get("online"), indent=2)[:2500])
           if not device.get("ok"):
               raise SystemExit("device export smoke failed: " + str(device.get("error")))
           if device.get("deviceMode") is not True:
@@ -179,8 +180,10 @@ jobs:
             ${{ runner.temp }}/out/README.txt
             ${{ runner.temp }}/out/ios-device-smoke.json
             ${{ runner.temp }}/out/ios-online-smoke.json
-            ${{ runner.temp }}/out/ios-export.mp4
-            ${{ runner.temp }}/out/ios-export-probe.json
+            ${{ runner.temp }}/out/ios-prico-short.mp4
+            ${{ runner.temp }}/out/ios-prico-reel.mp4
+            ${{ runner.temp }}/out/ios-short-probe.json
+            ${{ runner.temp }}/out/ios-reel-probe.json
             ${{ runner.temp }}/out/ios-health.json
             ${{ runner.temp }}/out/ios-server.log
             ${{ runner.temp }}/out/ios-before-launch.png

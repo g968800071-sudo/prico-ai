@@ -51,7 +51,7 @@ public class MainActivity extends BridgeActivity {
         view.evaluateJavascript(kick, value -> {
             String json = unquote(value);
             if (json == null || json.isEmpty() || "{}".equals(json)) {
-                if (attempt < 150) view.postDelayed(() -> runSmoke(view, attempt + 1), 1000);
+                if (attempt < 900) view.postDelayed(() -> runSmoke(view, attempt + 1), 1000);
                 else writeText(new File(getFilesDir(), "prico-smoke.json"), "{\"ok\":false,\"error\":\"smoke timeout\"}");
                 return;
             }

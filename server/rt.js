@@ -115,7 +115,7 @@ export function install(ctx) {
   r('GET', '/api/blocks', async req => { const u = need(req); return { items: Object.keys(db.blocks).filter(k => k.startsWith(u.id + ':')).map(k => pub(db.users[k.split(':')[1]])).filter(Boolean) }; });
 
   // ---------- LIVE ----------
-  const liveOut = (L, viewer) => ({ id: L.id, title: L.title, host: pub(db.users[L.host]), startedAt: L.startedAt, viewers: L.viewers.size, likes: L.likes, coins: L.coins, cover: L.cover ? mediaUrl(L.cover) : mediaUrl(db.users[L.host]?.avatar), isHost: viewer?.id === L.host, top: top(L) });
+  const liveOut = (L, viewer) => ({ id: L.id, title: L.title, host: pub(db.users[L.host]), startedAt: L.startedAt, viewers: L.viewers.size, likes: L.likes, coins: L.coins, cover: L.cover ? mediaUrl(L.cover) : mediaUrl(db.users[L.host]?.avatar), isHost: viewer?.id === L.host, top: top(L), relay: { frames: L.frames || 0, audioChunks: L.audioChunks || 0, audioBytes: L.audioBytes || 0 } });
   const top = L => Object.entries(L.gifters).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([uid, c]) => ({ user: pub(db.users[uid]), coins: c }));
   const bcast = (L, o, except) => { for (const cid of [L.hostConn, ...L.viewers]) if (cid && cid !== except) sendTo(cid, o); };
   const state = L => bcast(L, { t: 'live:state', viewers: L.viewers.size, likes: L.likes, coins: L.coins, top: top(L) });
@@ -188,7 +188,8 @@ export function install(ctx) {
       }
       if (m.t === 'live:like') { L.likes += Math.max(1, Math.min(10, m.n | 0 || 1)); bcast(L, { t: 'live:like', n: m.n | 0 || 1 }, cid); if (L.likes % 5 === 0) state(L); return; }
       if (m.t === 'live:fb' && L.hostConn !== cid) { me.fb = true; if (L.hostConn) sendTo(L.hostConn, { t: 'live:fb:on' }); return; } // WebRTC failed (no TURN) → JPEG relay
-      if (m.t === 'live:frame' && L.hostConn === cid && typeof m.d === 'string' && m.d.length < 60000 && m.d.startsWith('data:image/jpeg')) { let any = false; for (const v of L.viewers) { const c = conns.get(v); if (c?.fb) { any = true; sendTo(v, { t: 'live:frame', d: m.d }); } } if (!any) sendTo(cid, { t: 'live:fb:off' }); return; }
+      if (m.t === 'live:frame' && L.hostConn === cid && typeof m.d === 'string' && m.d.length < 60000 && m.d.startsWith('data:image/jpeg')) { L.frames = (L.frames || 0) + 1; let any = false; for (const v of L.viewers) { const c = conns.get(v); if (c?.fb) { any = true; sendTo(v, { t: 'live:frame', d: m.d, seq: L.frames }); } } if (!any) sendTo(cid, { t: 'live:fb:off' }); return; }
+      if (m.t === 'live:audio' && L.hostConn === cid && typeof m.d === 'string' && m.d.length > 8 && m.d.length < 50000) { L.audioChunks = (L.audioChunks || 0) + 1; L.audioBytes = (L.audioBytes || 0) + m.d.length; for (const v of L.viewers) { const c = conns.get(v); if (c?.fb) sendTo(v, { t: 'live:audio', d: m.d, seq: L.audioChunks }); } return; }
       if (m.t === 'rtc') { // relay only host <-> viewer of the same live
         const isHost = L.hostConn === cid;
         if (isHost && L.viewers.has(m.to)) sendTo(m.to, { t: 'rtc', from: cid, data: m.data });

@@ -52,6 +52,43 @@ function overlay(L, host) {
   $('.lvBar', el).onsubmit = async e => { e.preventDefault(); const i = $('.ci', el); const text = i.value.trim(); if (!text) return; if (!S.me) { await needAuth(); } i.value = ''; rt.send({ t: 'live:chat', text }); };
   return { el, addChat, heart, gift, st, msg, stage: $('.lvStage', el) };
 }
+function startRelayAudio(stream) {
+  const tracks = stream.getAudioTracks();
+  if (!tracks.length) return null;
+  const actx = new AudioContext({ sampleRate: 16000 });
+  const src = actx.createMediaStreamSource(new MediaStream(tracks));
+  const proc = actx.createScriptProcessor(1024, 1, 1);
+  let seq = 0;
+  proc.onaudioprocess = e => {
+    const f = e.inputBuffer.getChannelData(0);
+    const pcm = new Int16Array(f.length);
+    for (let i = 0; i < f.length; i++) { const s = Math.max(-1, Math.min(1, f[i] || 0)); pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff; }
+    const u8 = new Uint8Array(pcm.buffer);
+    let bin = '';
+    for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    rt.send({ t: 'live:audio', d: btoa(bin), seq: seq++ });
+  };
+  const mute = actx.createGain();
+  mute.gain.value = 0;
+  src.connect(proc); proc.connect(mute); mute.connect(actx.destination);
+  return () => { try { proc.disconnect(); src.disconnect(); actx.close(); } catch {} };
+}
+let relayCtx = null, relayNext = 0;
+function playRelayPcm(b64) {
+  try {
+    if (!relayCtx) relayCtx = new AudioContext({ sampleRate: 16000 });
+    const bin = atob(b64);
+    const pcm = new Int16Array(bin.length >> 1);
+    for (let i = 0; i < pcm.length; i++) pcm[i] = (bin.charCodeAt(i * 2) | (bin.charCodeAt(i * 2 + 1) << 8)) << 16 >> 16;
+    const buf = relayCtx.createBuffer(1, pcm.length, 16000);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+    const src = relayCtx.createBufferSource();
+    src.buffer = buf; src.connect(relayCtx.destination);
+    const t0 = Math.max(relayCtx.currentTime + 0.05, relayNext);
+    src.start(t0); relayNext = t0 + buf.duration;
+  } catch {}
+}
 function endScreen(stats, host) {
   const d = Math.round((stats?.duration || 0) / 1000);
   const body = h(`<div class="col" style="text-align:center;align-items:center"><div style="font-size:52px">${host ? '🎉' : '👋'}</div><h2 style="margin:0">${esc(t(host ? 'liveEndedHost' : 'liveEnded'))}</h2>
@@ -105,13 +142,17 @@ function hostRun(L, cam, fx, rail) {
   offs.push(rt.on('live:chat', ui.addChat));
   offs.push(rt.on('live:like', () => ui.heart()));
   offs.push(rt.on('live:gift', ui.gift));
+  let stopAudio = null;
   offs.push(rt.on('live:fb:on', () => { if (fb) return; fb = true; const c = document.createElement('canvas'); c.width = 270; c.height = 480; const x = c.getContext('2d');
-    fbT = setInterval(() => { x.drawImage(cam.canvas, 0, 0, 270, 480); rt.send({ t: 'live:frame', d: c.toDataURL('image/jpeg', 0.5) }); }, 500); }));
-  offs.push(rt.on('live:fb:off', () => { fb = false; clearInterval(fbT); }));
+    fbT = setInterval(() => { x.drawImage(cam.canvas, 0, 0, 270, 480); rt.send({ t: 'live:frame', d: c.toDataURL('image/jpeg', 0.5) }); }, 200);
+    stopAudio = startRelayAudio(stream);
+    if (!cam.audioTracks().length) ui.msg(t('micDenied'));
+  }));
+  offs.push(rt.on('live:fb:off', () => { fb = false; clearInterval(fbT); stopAudio?.(); stopAudio = null; }));
   offs.push(rt.on('live:end', m => finish(m.stats)));
   if (rt.ready()) hello(); else rt.connect();
   ui.addChat({ user: S.me, text: t('youAreLive'), host: true });
-  const finish = stats => { if (ended) return; ended = true; offs.forEach(f => f()); clearInterval(fbT); peers.forEach(p => p.close()); cam.stop(); ui.el.remove(); endScreen(stats, true); refreshMe().catch(() => {}); refreshLive(); };
+  const finish = stats => { if (ended) return; ended = true; offs.forEach(f => f()); clearInterval(fbT); stopAudio?.(); peers.forEach(p => p.close()); cam.stop(); ui.el.remove(); endScreen(stats, true); refreshMe().catch(() => {}); refreshLive(); };
   const end = async () => { try { await api(`/api/lives/${L.id}/end`, { method: 'POST' }); } catch {} setTimeout(() => finish(null), 1500); };
   $('.endB', ui.el).onclick = () => confirm(t('endLive') + '?') && end();
   $('.x', ui.el).onclick = () => confirm(t('endLive') + '?') && end();
@@ -145,6 +186,7 @@ export async function watchLive(lid) {
     } catch (e) { console.warn(e); }
   }));
   offs.push(rt.on('live:frame', m => { if (connected) return; img.src = m.d; img.style.display = ''; v.style.display = 'none'; ui.msg(''); }));
+  offs.push(rt.on('live:audio', m => { if (connected) return; playRelayPcm(m.d); }));
   offs.push(rt.on('live:state', ui.st));
   offs.push(rt.on('live:chat', ui.addChat));
   offs.push(rt.on('live:like', () => ui.heart()));

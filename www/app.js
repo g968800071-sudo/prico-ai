@@ -189,7 +189,7 @@ function openSettings() {
     <button class="li sfty">${I.shield}<span class="sp">${esc(t('safety'))}</span>${I.chev}</button>
     <button class="li inst" style="${NATIVE ? 'display:none' : ''}">${I.download}<span class="sp">${esc(t('install'))}</span></button>
     <button class="li out">${I.logout}<span class="sp">${esc(t('logout'))}</span></button>
-    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.4.0 · © PRICOP.studio<br>${esc(S.device ? t('deviceHomeTitle') : S.apiBase ? t('serverConfigured', { host: S.apiBase }) : t('serverThisSite'))}<br>${esc(S.cat?.ai?.available ? t('aiStatusOn') : t('aiStatusOff', { reason: t('reason_' + (S.cat?.ai?.reason || 'device')) }))}<br>${esc(t('credit'))}</div></div>`);
+    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.5.0 · © PRICOP.studio<br>${esc(S.device ? t('deviceHomeTitle') : S.apiBase ? t('serverConfigured', { host: S.apiBase }) : t('serverThisSite'))}<br>${esc(S.cat?.ai?.available ? t('aiStatusOn') : t('aiStatusOff', { reason: t('reason_' + (S.cat?.ai?.reason || 'device')) }))}<br>${esc(t('credit'))}</div></div>`);
   const sh = sheet({ title: t('settings'), body, full: true });
   $$('.lg', body).forEach(b => b.onclick = async () => {
     const l = b.dataset.l; l === 'auto' ? localStorage.removeItem('prico.lang') : localStorage.setItem('prico.lang', l);

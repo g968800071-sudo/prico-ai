@@ -1,6 +1,6 @@
 // Create: template catalog, template editor (faces + text + stickers), face manager, generation progress and result.
 import { t, lang } from './i18n.js';
-import { S, I, api, h, esc, abs, toast, fail, sheet, haptic, shareRow, prepFile, copyText, confetti, download, PUBLIC, $, $$, sleep } from './core.js';
+import { S, I, api, h, esc, abs, toast, fail, sheet, haptic, shareRow, prepFile, copyText, confetti, download, origin, generationGate, $, $$, sleep } from './core.js';
 import { needAuth, go, openShop, refreshMe, walletChip } from './app.js';
 
 let root, q = '', grp = 'all';
@@ -74,8 +74,10 @@ export async function openTemplate(id, opt = {}) {
     <div class="lbl">${esc(t('stickers'))}</div><div class="stkGrid">${S.cat.stickers.map(s => `<button data-s="${s}"><img src="stickers/${s}.svg" alt="" loading="lazy"></button>`).join('')}</div>
   </div>`);
   const ai = S.cat?.ai || { available: false, reason: 'provider_off' };
-  const foot = h(`<button class="btn pri wide go">${I.sparkle}<span>${esc(t(ai.available ? (x.kind === 'video' ? 'makeVideo' : 'makePhoto') : 'aiUnavailableCta'))}</span></button>`);
-  if (!ai.available) body.prepend(h(`<div class="aiOff"><b>${esc(t('aiUnavailableTitle'))}</b><div>${esc(t('aiUnavailableBody'))}</div><div class="mut xs" style="margin-top:6px">${esc(t('aiModelLine', { model: ai.videoModel || '' }))} · ${esc(t('reason_' + (ai.reason || 'provider_off')))}</div></div>`));
+  const multi = x.faces > 1 || x.identity === 'unsupported';
+  const foot = h(`<button class="btn pri wide go" ${multi ? 'disabled' : ''}>${I.sparkle}<span>${esc(t(multi ? 'multiFaceTitle' : ai.available ? (x.kind === 'video' ? 'makeVideo' : 'makePhoto') : 'aiUnavailableCta'))}</span></button>`);
+  if (multi) body.prepend(h(`<div class="aiOff"><b>${esc(t('multiFaceTitle'))}</b><div>${esc(t('multiFaceBody'))}</div></div>`));
+  else if (!ai.available) body.prepend(h(`<div class="aiOff"><b>${esc(t('aiUnavailableTitle'))}</b><div>${esc(t('aiUnavailableBody'))}</div><div class="mut xs" style="margin-top:6px">${esc(t('aiModelLine', { model: ai.videoModel || '' }))} · ${esc(t('reason_' + (ai.reason || 'provider_off')))}</div></div>`));
   const sh = sheet({ title: '', body, foot, full: true });
   const stage = $('.stage', body), ovt = $('.ovText', body);
   const drawText = () => { ovt.textContent = ov.text; ovt.style.color = ov.color; ovt.style.fontSize = (stage.clientWidth * 0.075) + 'px'; ovt.style.top = ov.pos === 'top' ? '12%' : ov.pos === 'center' ? '50%' : '72%'; ovt.style.transform = ov.pos === 'center' ? 'translateY(-50%)' : ''; };
@@ -106,7 +108,10 @@ export async function openTemplate(id, opt = {}) {
   if (!S.me.faces.length) { faces(); addFace().then(f => { if (f) pick = [f.id]; faces(); }); } else { pick = S.me.faces.slice(0, x.faces).map(f => f.id); faces(); }
   requestAnimationFrame(drawText);
   foot.onclick = async () => {
-    if (!S.cat?.ai?.available) { toast(t('e_ai_unavailable'), true); return; }
+    if (multi) { toast(t('multiFaceBody'), true); return; }
+    let health;
+    try { health = await generationGate(); } catch (e) { toast(t(e.code === 'server_unsafe_ai' ? 'serverUnsafeAi' : 'e_' + (e.code || 'generic')), true); return; }
+    if (!health.ai?.available) { toast(t('e_ai_unavailable'), true); return; }
     if (!pick.length) { toast(t('e_no_face'), true); return addFace().then(f => { if (f) { pick = [f.id]; faces(); } }); }
     haptic(15);
     try {
@@ -208,7 +213,7 @@ export async function showResult(m, opt = {}) {
   let caption = '', tags = [];
   const full = () => [caption, tags.join(' ')].filter(Boolean).join('\n\n');
   let postId = null;
-  $('.srow', body).replaceWith(shareRow(async () => ({ url: m.url, type: m.type, caption: full(), link: postId ? `${PUBLIC}/p/${postId}` : PUBLIC })));
+  $('.srow', body).replaceWith(shareRow(async () => ({ url: m.url, type: m.type, caption: full(), link: postId ? `${origin()}/p/${postId}` : origin() })));
   try {
     const c = m.captions || await api(`/api/captions?media=${m.id}`);
     const caps = $('.caps', body); caps.innerHTML = ''; tags = c.hashtags || []; caption = (c.captions || [])[0] || '';

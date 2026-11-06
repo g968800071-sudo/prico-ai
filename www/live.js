@@ -1,7 +1,7 @@
 // PRICO LIVE: go live from the camera (with face effects), WebRTC to viewers (JPEG relay fallback when P2P fails),
 // live chat, hearts, gifts bought with coins, gift banners, per-live + global leaderboards, end-of-live stats.
 import { t } from './i18n.js';
-import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, confetti, $, $$ } from './core.js';
+import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, confetti, $, $$, paymentsGate } from './core.js';
 import { needAuth, refreshMe } from './app.js';
 import * as rt from './rt.js';
 
@@ -192,6 +192,6 @@ export async function coinShop(after) {
     const { lang } = await import('./i18n.js');
     const money = p => new Intl.NumberFormat(lang(), { style: 'currency', currency: p.currency }).format(p.price);
     body.innerHTML = `<div class="payNote">${esc(t('paymentsPostponed'))}</div><div class="coinGrid">${packs.map(p => `<button class="coinPack ${p.best ? 'best' : ''}" data-p="${p.id}">${p.best ? `<span class="badge hot">${esc(t('best'))}</span>` : ''}<b>🪙 ${fmt(p.coins)}</b><span class="price">${money(p)}</span></button>`).join('')}</div><div class="mut xs" style="text-align:center;margin-top:14px">${esc(t('paymentsPostponedShort'))}</div>`;
-    $$('[data-p]', body).forEach(b => b.onclick = async () => { b.disabled = true; try { await api('/api/shop/buy', { body: { productId: b.dataset.p } }); toast(t('e_payments_postponed'), true); } catch (e) { toast(e.code === 'payments_postponed' ? t('e_payments_postponed') : (await import('./core.js')).errMsg(e), true); } finally { b.disabled = false; } });
+    $$('[data-p]', body).forEach(b => b.onclick = async () => { b.disabled = true; try { await paymentsGate(); await api('/api/shop/buy', { body: { productId: b.dataset.p } }); toast(t('e_payments_postponed'), true); } catch (e) { toast(e.code === 'payments_postponed' ? t('e_payments_postponed') : e.code === 'server_unsafe_pay' ? t('serverUnsafePay') : (await import('./core.js')).errMsg(e), true); } finally { b.disabled = false; } });
   } catch (e) { fail(e); }
 }

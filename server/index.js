@@ -46,7 +46,7 @@ function send(res, code, body, headers = {}) {
   res.writeHead(code, { 'Content-Type': isBuf ? 'application/octet-stream' : 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...headers });
   res.end(data);
 }
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS' };
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS', 'Access-Control-Allow-Private-Network': 'true' };
 
 async function readBody(req, max = 8 * 1024 * 1024) {
   const chunks = []; let n = 0;
@@ -94,7 +94,8 @@ const facesOf = u => (u.faces || []).map(f => db.faces[f]).filter(Boolean);
 const faceOut = f => ({ id: f.id, url: mediaUrl(f.cut || f.img), cut: !!f.cut });
 
 function tplOut(t, lang) {
-  return { id: t.id, kind: t.kind, group: t.group, emoji: t.emoji, faces: t.kind === 'video' ? (t.faces || 1) : 1, name: loc(t.name, lang), preview: `/api/preview/${t.id}.jpg?v=${PREVIEW_V}`, cost: t.kind === 'video' ? 1 : 0, hot: !!t.hot, isNew: !!t.isNew, music: t.music || null };
+  const faces = t.kind === 'video' ? (t.faces || 1) : 1;
+  return { id: t.id, kind: t.kind, group: t.group, emoji: t.emoji, faces, identity: faces > 1 ? 'unsupported' : 'single', name: loc(t.name, lang), preview: `/api/preview/${t.id}.jpg?v=${PREVIEW_V}`, cost: t.kind === 'video' ? 1 : 0, hot: !!t.hot, isNew: !!t.isNew, music: t.music || null };
 }
 function postOut(p, viewer) {
   const t = byId(p.tpl); const u = db.users[p.uid]; const lang = viewer?.lang || 'en';
@@ -232,7 +233,7 @@ function feed(tab, viewer, cursor = 0, limit = 8) {
 const routes = [];
 const r = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn });
 
-r('GET', '/api/health', async () => ({ ok: true, version: VERSION, tts: tts.provider(), lives: hub?.lives.size || 0, ai: providers.status(), store: store.backend(), payments: payments.mode(), users: Object.keys(db.users).length, posts: Object.keys(db.posts).length }));
+r('GET', '/api/health', async () => ({ ok: true, version: VERSION, tts: tts.provider(), lives: hub?.lives.size || 0, ai: providers.status(), store: store.backend(), payments: payments.mode(), capabilities: { contract: 2, generation: 'unavailable-or-real', payments: 'postponed' }, users: Object.keys(db.users).length, posts: Object.keys(db.posts).length }));
 
 r('POST', '/api/auth/register', async (req) => {
   const { email, password, name, lang } = await json(req);
@@ -317,9 +318,9 @@ r('POST', '/api/generate', async (req) => {
   if (!check(prompt).ok) bad('unsafe_prompt', 422);
   const overlay = cleanOverlay(b.overlay);
   const want = t.kind === 'video' ? (t.faces || 1) : 1;
-  const fids = (Array.isArray(b.faceIds) ? b.faceIds : []).filter(f => db.faces[f] && (db.faces[f].uid === u.id || (db.faces[f].shared))).slice(0, want);
+  if (want > 1) bad('multi_face_unsupported', 422, { faces: want });
+  const fids = (Array.isArray(b.faceIds) ? b.faceIds : []).filter(f => db.faces[f] && (db.faces[f].uid === u.id || (db.faces[f].shared))).slice(0, 1);
   if (!fids.length) bad('no_face');
-  while (fids.length < want) fids.push(fids[fids.length - 1]);
   for (const fid of fids) {
     const blob = await store.getBlob(db.faces[fid].img);
     const { validateImage } = await import('./media-validate.js');
@@ -415,7 +416,7 @@ r('POST', '/api/media/photo', async (req) => {
   save(); return { media: mediaOut(db.media[mid]) };
 });
 // Photo Studio: HD enhance, background swap ("you anywhere"), greeting cards. Free; owner unlimited; 30/day for others.
-r('GET', '/api/studio', async () => ({ enhance: studio.enhanceMode(), scenes: studio.BG_SCENES, cards: Object.keys(studio.CARDS) }));
+r('GET', '/api/studio', async () => ({ enhance: studio.enhanceMode(), upscale: false, scenes: studio.BG_SCENES, cards: Object.keys(studio.CARDS) }));
 const bgThumbs = new Map();
 r('GET', '/api/studio/bg/:scene', async (req, p, res) => {
   const sc = p.scene.replace(/\.jpg$/, ''); if (!studio.BG_SCENES.includes(sc) && !Object.values(studio.CARDS).includes(sc)) bad('not_found', 404);

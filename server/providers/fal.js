@@ -167,9 +167,11 @@ export function createProvider({ env = process.env, fetch: fetchImpl = globalThi
     photoModel: () => env.FAL_PHOTO_MODEL || PHOTO_MODEL,
     videoModel: () => env.FAL_VIDEO_MODEL || VIDEO_MODEL,
     photo(tpl, faces, opts = {}) {
+      if ((faces?.length || 0) > 1) return Promise.reject(new AiError('multi_face_unsupported', 422));
       return generatePhoto({ fetch: fetchImpl, key: key(), model: env.FAL_PHOTO_MODEL || PHOTO_MODEL, image: faces?.[0]?.img, prompt: stillPrompt(tpl, opts.prompt) });
     },
     video(tpl, faces, opts = {}) {
+      if ((faces?.length || 0) > 1) return Promise.reject(new AiError('multi_face_unsupported', 422));
       return generateVideo({
         fetch: fetchImpl, key: key(),
         photoModel: env.FAL_PHOTO_MODEL || PHOTO_MODEL,

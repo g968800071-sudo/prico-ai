@@ -1,6 +1,6 @@
 // PRICO AI by PRICOP.studio — app shell: boot, router, tabs, auth, onboarding, Top, Me, profiles, settings, shop.
 import { t, setLang, detect, LANGS, lang } from './i18n.js';
-import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, setToken, closeAll, confetti, NATIVE, $, $$, errMsg } from './core.js';
+import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, setToken, closeAll, confetti, NATIVE, $, $$, errMsg, loadServer, paymentsGate } from './core.js';
 import { mountHome, pauseAll, resumeCur, reset as resetFeed } from './feed.js';
 import { mountCreate, openTemplate, manageFaces } from './create.js';
 import { mountReels, stopAudio } from './reelsui.js';
@@ -185,7 +185,7 @@ function openSettings() {
     <button class="li sfty">${I.shield}<span class="sp">${esc(t('safety'))}</span>${I.chev}</button>
     <button class="li inst" style="${NATIVE ? 'display:none' : ''}">${I.download}<span class="sp">${esc(t('install'))}</span></button>
     <button class="li out">${I.logout}<span class="sp">${esc(t('logout'))}</span></button>
-    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.2.0 · © PRICOP.studio<br>${esc(S.cat?.ai?.available ? t('aiStatusOn') : t('aiStatusOff', { reason: t('reason_' + (S.cat?.ai?.reason || 'provider_off')) }))}<br>${esc(t('credit'))}</div></div>`);
+    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.2.0 · © PRICOP.studio<br>${esc(S.apiBase ? t('serverConfigured', { host: S.apiBase }) : t('serverThisSite'))}<br>${esc(S.cat?.ai?.available ? t('aiStatusOn') : t('aiStatusOff', { reason: t('reason_' + (S.cat?.ai?.reason || 'provider_off')) }))}<br>${esc(t('credit'))}</div></div>`);
   const sh = sheet({ title: t('settings'), body, full: true });
   $$('.lg', body).forEach(b => b.onclick = async () => {
     const l = b.dataset.l; l === 'auto' ? localStorage.removeItem('prico.lang') : localStorage.setItem('prico.lang', l);
@@ -215,10 +215,11 @@ export async function openShop() {
     const buy = async (id, btn) => {
       if (btn) btn.disabled = true;
       try {
+        await paymentsGate();
         await api('/api/shop/buy', { body: { productId: id } });
         toast(t('e_payments_postponed'), true);
       } catch (e) {
-        toast(e.code === 'payments_postponed' ? t('e_payments_postponed') : errMsg(e), true);
+        toast(e.code === 'payments_postponed' ? t('e_payments_postponed') : e.code === 'server_unsafe_pay' ? t('serverUnsafePay') : errMsg(e), true);
       } finally { if (btn) btn.disabled = false; }
     };
     const trialOn = w?.trial ? `<div class="trialOn">⏳ ${esc(t('trialActive', { d: Math.max(1, Math.ceil((w.plusUntil - Date.now()) / 86400000)) }))}</div>` : '';
@@ -275,6 +276,11 @@ async function loadCatalog() { S.cat = await api('/api/catalog'); }
 // ---------- boot ----------
 async function boot() {
   await setLang(detect());
+  await loadServer();
+  if (NATIVE && !S.apiBase) {
+    document.body.insertAdjacentHTML('beforeend', `<div class="empty" style="position:fixed;inset:0;z-index:99;background:var(--bg)"><div class="big">🔌</div><div>${esc(t('serverMissing'))}</div></div>`);
+    return;
+  }
   buildTabs();
   const [, me] = await Promise.all([loadCatalog().catch(async e => { await new Promise(r => setTimeout(r, 1500)); return loadCatalog(); }), refreshMe()]);
   if (S.me && !localStorage.getItem('prico.lang') && S.me.lang && S.me.lang !== lang() && LANGS.some(l => l[0] === S.me.lang)) { /* device language wins in auto mode */ }

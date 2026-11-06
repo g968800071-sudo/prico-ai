@@ -1,6 +1,6 @@
 // Home: TikTok-style vertical feed with autoplay, double-tap like, comments, share, report, "Put me in".
 import { t } from './i18n.js';
-import { S, I, api, h, esc, fmt, ago, abs, toast, fail, sheet, haptic, shareRow, PUBLIC, $, $$ } from './core.js';
+import { S, I, api, h, esc, fmt, ago, abs, toast, fail, sheet, haptic, shareRow, origin, $, $$ } from './core.js';
 import { needAuth, go, openUser, openShop } from './app.js';
 import { openTemplate } from './create.js';
 
@@ -116,7 +116,7 @@ export async function openComments(p, el) {
   };
 }
 export function openShare(p, el) {
-  const link = `${PUBLIC}/p/${p.id}`;
+  const link = `${origin()}/p/${p.id}`;
   const body = h(`<div class="col"></div>`);
   const sh = sheet({ title: t('share'), body });
   body.append(shareRow(async () => { api(`/api/posts/${p.id}/share`, { method: 'POST' }).then(r => { p.shares = r.shares; el && ($('.shr span', el).textContent = fmt(r.shares)); }).catch(() => {}); return { url: p.url, type: p.type, caption: p.caption ? p.caption + ' #PRICOAI' : '#PRICOAI', link }; }));

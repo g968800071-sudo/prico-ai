@@ -4,10 +4,11 @@ The Android package and the iOS Xcode project are Capacitor shells around `www/`
 
 ## Which server an install calls
 
-The native UI reads `www/server.json` at launch (`apiBase`).
+The native UI reads `www/server.json` at launch (`apiBase`). The deliverable build leaves `apiBase` empty.
 
-- An empty `apiBase` does not fall back to `https://prico-ai.onrender.com`. The screen says the install has no server address and makes no API call.
-- Web pages keep using the site they were loaded from.
+- An empty address opens **on this phone** mode: import, the editor, music, captions, a crossfade, and an on-phone video export. Projects stay in the phone. There is no account. Real AI and payments stay off, and nothing is sent to a model.
+- `https://prico-ai.onrender.com` is refused even if it is typed in. The app does not fall back to that host.
+- A server address can be saved only after `/api/health` reports contract 2. Web pages keep using the site they were loaded from.
 - Before AI generation or a shop tap, the client reads `/api/health` and continues only when `capabilities.contract` is at least 2, `capabilities.generation` is `unavailable-or-real`, and `capabilities.payments` is `postponed`. The public 1.1 server (`provider: demo`, `payments: demo`, no `capabilities`) fails that check, so the app does not call `/api/generate` or `/api/shop/buy` there. Those old routes would composite a face or grant Plus.
 
 The debug APK built for verification sets `apiBase` to `http://10.0.2.2:18181`, the Android emulator alias for the host test server. It does not use the production database. The shell is loaded from `https://localhost`, so a debug build also sets Capacitor `allowMixedContent` so that page can call the explicit `http://10.0.2.2:18181` test server. Release manifests still refuse cleartext. An `https` `apiBase` does not need cleartext.

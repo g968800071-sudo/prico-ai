@@ -1,0 +1,63 @@
+# Unsigned iOS Simulator build on GitHub's standard macos-latest runner.
+# Public repositories: standard hosted runners, including macos-latest, are free.
+# This does not use a larger runner, does not sign, and does not produce an installable IPA.
+name: iOS simulator
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [cursor/prico-ai-build-2551]
+
+permissions:
+  contents: read
+
+jobs:
+  simulator:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: |
+          npm install
+          cd mobile && npm install
+      - name: Stage the on-phone bundle
+        run: node tools/stage-mobile.mjs
+      - name: Sync the iOS project
+        working-directory: mobile
+        run: npx cap sync ios
+      - name: Build an unsigned simulator app
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project mobile/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tee "$RUNNER_TEMP/xcodebuild.log"
+          APP="$(find "$RUNNER_TEMP/derived" -type d -name 'App.app' -path '*iphonesimulator*' | head -1)"
+          test -n "$APP"
+          test -f "$APP/Info.plist"
+          mkdir -p "$RUNNER_TEMP/out"
+          ditto "$APP" "$RUNNER_TEMP/out/PRICO-AI-simulator.app"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$RUNNER_TEMP/out/PRICO-AI-simulator.app/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/out/PRICO-AI-simulator.app/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$RUNNER_TEMP/out/PRICO-AI-simulator.app/Info.plist"
+          ditto -c -k --keepParent "$RUNNER_TEMP/out/PRICO-AI-simulator.app" "$RUNNER_TEMP/out/PRICO-AI-simulator-app.zip"
+          ditto -c -k --keepParent mobile/ios "$RUNNER_TEMP/out/PRICO-AI-ios-source.zip"
+          printf '%s\n' 'This is an unsigned iOS Simulator .app. It is not an IPA and will not install on a physical iPhone.' > "$RUNNER_TEMP/out/README.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prico-ai-ios-simulator-unsigned
+          path: |
+            ${{ runner.temp }}/out/PRICO-AI-simulator-app.zip
+            ${{ runner.temp }}/out/PRICO-AI-ios-source.zip
+            ${{ runner.temp }}/out/README.txt
+          if-no-files-found: error

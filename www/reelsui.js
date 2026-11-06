@@ -3,6 +3,7 @@ import { t } from './i18n.js';
 import { S, I, api, h, esc, abs, toast, fail, haptic, upload, $, $$ } from './core.js';
 import { needAuth, walletChip, openShop } from './app.js';
 import { progress, showResult, addFace } from './create.js';
+import { exportLocal } from './localexport.js';
 
 let root, items = [], niche = 'funny', musicId = null, subs = true, idea = '', audio;
 export function mountReels(el) {
@@ -60,7 +61,23 @@ function drawMusic() {
   });
 }
 async function make() {
-  await needAuth(); stopAudio();
+  stopAudio();
+  if (S.device) {
+    if (!items.length) { toast(t('e_need_media'), true); return; }
+    const btn = $('.mk', root); btn.disabled = true;
+    try {
+      const clips = items.map(it => ({ kind: it.kind, url: it.url, dur: it.kind === 'image' ? 2.2 : 3 }));
+      const lines = idea.split(/(?<=[.!?…])\s+|\n+/).map(s => s.trim()).filter(Boolean).slice(0, 8);
+      const captions = lines.map((text, i) => ({ text, start: i * 1.4, end: i * 1.4 + 1.4 }));
+      const musicUrl = abs(S.cat?.music?.find(x => x.id === musicId)?.url || '');
+      const out = await exportLocal({ clips, captions, musicUrl, texts: [], aspect: '9:16' });
+      const url = URL.createObjectURL(out.blob);
+      showResult({ type: 'video', url, local: true, ai: false, device: true, poster: items[0].url });
+    } catch (e) { fail(e); }
+    finally { btn.disabled = false; }
+    return;
+  }
+  await needAuth();
   if (!items.length && !S.me.faces.length) { toast(t('needMedia')); const f = await addFace(); if (!f) return; }
   const btn = $('.mk', root); btn.disabled = true;
   try {

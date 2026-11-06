@@ -1,6 +1,7 @@
 // PRICO AI by PRICOP.studio — app shell: boot, router, tabs, auth, onboarding, Top, Me, profiles, settings, shop.
 import { t, setLang, detect, LANGS, lang } from './i18n.js';
-import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, setToken, closeAll, confetti, NATIVE, $, $$, errMsg, loadServer, paymentsGate } from './core.js';
+import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, setToken, closeAll, confetti, NATIVE, $, $$, errMsg, loadServer, paymentsGate, useDeviceMode } from './core.js';
+import { loadOfflineCatalog, probeServer } from './device.js';
 import { mountHome, pauseAll, resumeCur, reset as resetFeed } from './feed.js';
 import { mountCreate, openTemplate, manageFaces } from './create.js';
 import { mountReels, stopAudio } from './reelsui.js';
@@ -58,7 +59,7 @@ export function go(r) { if (location.hash !== '#/' + r) location.hash = '#/' + r
 function route() {
   const r = (location.hash.slice(2) || 'home').split('/')[0];
   const v = ROUTES.includes(r) ? r : 'home';
-  if (v === 'me' && !S.me) { needAuth().then(() => route()); if (S.route === 'me') return; }
+  if (v === 'me' && !S.me && !S.device) { needAuth().then(() => route()); if (S.route === 'me') return; }
   S.route = v;
   const hv = v === 'reels' ? 'create' : v === 'top' || v === 'live' ? 'home' : v;
   $$('#tabs button').forEach(b => { const on = b.dataset.r === hv; b.classList.toggle('on', on); const tb = TABS.find(x => x[0] === b.dataset.r); if (tb && tb[0] !== 'plus') b.querySelector('.ic').innerHTML = I[on ? tb[3] : tb[2]]; });
@@ -68,13 +69,14 @@ function route() {
   if (v !== 'home') pauseAll(); else resumeCur();
   if (v !== 'reels') stopAudio();
   const el = $('#v-' + v);
-  if (v === 'home' && !mounted.home) { mounted.home = 1; mountHome(el); }
+  if (v === 'home' && !mounted.home) { mounted.home = 1; S.device ? mountDeviceHome(el) : mountHome(el); }
   if (v === 'create' && !mounted.create) { mounted.create = 1; mountCreate(el); }
   if (v === 'reels' && !mounted.reels) { mounted.reels = 1; mountReels(el); }
   if (v === 'top') { mounted.top = 1; drawTop(); }
   if (v === 'inbox') { if (!mounted.inbox) { mounted.inbox = 1; mountInbox(el); } else refreshInbox(); }
   if (v === 'live') { if (!mounted.live) { mounted.live = 1; mountLive(el); } }
-  if (v === 'me' && S.me) { mounted.me = 1; drawMe(); }
+  if (v === 'me' && S.device && !S.me) { mounted.me = 1; drawDeviceMe(el); }
+  else if (v === 'me' && S.me) { mounted.me = 1; drawMe(); }
 }
 function remountAll() { for (const k of Object.keys(mounted)) delete mounted[k]; buildTabs(); route(); }
 function buildTabs() {
@@ -185,7 +187,7 @@ function openSettings() {
     <button class="li sfty">${I.shield}<span class="sp">${esc(t('safety'))}</span>${I.chev}</button>
     <button class="li inst" style="${NATIVE ? 'display:none' : ''}">${I.download}<span class="sp">${esc(t('install'))}</span></button>
     <button class="li out">${I.logout}<span class="sp">${esc(t('logout'))}</span></button>
-    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.2.0 · © PRICOP.studio<br>${esc(S.apiBase ? t('serverConfigured', { host: S.apiBase }) : t('serverThisSite'))}<br>${esc(S.cat?.ai?.available ? t('aiStatusOn') : t('aiStatusOff', { reason: t('reason_' + (S.cat?.ai?.reason || 'provider_off')) }))}<br>${esc(t('credit'))}</div></div>`);
+    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.3.0 · © PRICOP.studio<br>${esc(S.device ? t('deviceHomeTitle') : S.apiBase ? t('serverConfigured', { host: S.apiBase }) : t('serverThisSite'))}<br>${esc(S.cat?.ai?.available ? t('aiStatusOn') : t('aiStatusOff', { reason: t('reason_' + (S.cat?.ai?.reason || 'device')) }))}<br>${esc(t('credit'))}</div></div>`);
   const sh = sheet({ title: t('settings'), body, full: true });
   $$('.lg', body).forEach(b => b.onclick = async () => {
     const l = b.dataset.l; l === 'auto' ? localStorage.removeItem('prico.lang') : localStorage.setItem('prico.lang', l);
@@ -213,6 +215,7 @@ export async function openShop() {
     const w = r.wallet || S.me?.wallet;
     const money = p => new Intl.NumberFormat(lang(), { style: 'currency', currency: p.currency }).format(p.price);
     const buy = async (id, btn) => {
+      if (S.device) { toast(t('devicePayOff'), true); return; }
       if (btn) btn.disabled = true;
       try {
         await paymentsGate();
@@ -271,18 +274,42 @@ function onboarding() {
   });
 }
 
-async function loadCatalog() { S.cat = await api('/api/catalog'); }
+async function loadCatalog() { if (S.device) { S.cat = await loadOfflineCatalog(lang()); return S.cat; } S.cat = await api('/api/catalog'); }
+function mountDeviceHome(el) {
+  el.innerHTML = `<div class="pad"><div class="hdr"><h1>${esc(t('deviceHomeTitle'))}</h1></div>
+    <div class="payNote">${esc(t('deviceHomeBody'))}</div>
+    <button class="btn pri wide ed">${esc(t('plEditor'))}</button>
+    <button class="btn wide re" style="margin-top:8px">${esc(t('reelsTitle'))}</button>
+    <p class="mut sm">${esc(t('deviceAccount'))}</p></div>`;
+  $('.ed', el).onclick = () => import('./editor.js').then(m => m.openEditor());
+  $('.re', el).onclick = () => go('reels');
+}
+function drawDeviceMe(el) {
+  el.innerHTML = `<div class="pad"><div class="hdr"><h2>${esc(t('deviceHomeTitle'))}</h2><span class="sp"></span><button class="iconBtn set">${I.gear}</button></div>
+    <div class="payNote">${esc(t('deviceAccount'))}</div>
+    <div class="aiOff"><b>${esc(t('deviceAiOff'))}</b><div>${esc(t('devicePayOff'))}</div></div>
+    <label class="lbl">${esc(t('serverField'))}</label>
+    <input class="field srv" placeholder="https://…" autocomplete="off" inputmode="url">
+    <button class="btn pri wide conn" style="margin-top:10px">${esc(t('serverConnect'))}</button>
+    <p class="mut xs st"></p></div>`;
+  $('.set', el).onclick = openSettings;
+  $('.conn', el).onclick = async () => {
+    const r = await probeServer($('.srv', el).value);
+    if (!r.ok) { $('.st', el).textContent = t(r.reason === 'blocked_host' ? 'serverBlocked' : r.reason === 'unsafe_server' ? 'serverUnsafeAi' : 'serverNeed'); return; }
+    localStorage.setItem('prico.server', r.url); toast(t('serverSaved')); location.reload();
+  };
+}
 
 // ---------- boot ----------
 async function boot() {
   await setLang(detect());
   await loadServer();
-  if (NATIVE && !S.apiBase) {
-    document.body.insertAdjacentHTML('beforeend', `<div class="empty" style="position:fixed;inset:0;z-index:99;background:var(--bg)"><div class="big">🔌</div><div>${esc(t('serverMissing'))}</div></div>`);
-    return;
+  if (NATIVE && S.apiBase) {
+    const gate = await probeServer(S.apiBase);
+    if (!gate.ok) { useDeviceMode(); try { localStorage.removeItem('prico.server'); } catch {} }
   }
   buildTabs();
-  const [, me] = await Promise.all([loadCatalog().catch(async e => { await new Promise(r => setTimeout(r, 1500)); return loadCatalog(); }), refreshMe()]);
+  const [, me] = await Promise.all([loadCatalog().catch(async e => { if (S.device) throw e; await new Promise(r => setTimeout(r, 1500)); return loadCatalog(); }), S.device ? null : refreshMe()]);
   if (S.me && !localStorage.getItem('prico.lang') && S.me.lang && S.me.lang !== lang() && LANGS.some(l => l[0] === S.me.lang)) { /* device language wins in auto mode */ }
   const deep = location.pathname.match(/^\/p\/([\w-]+)/);
   const q = new URLSearchParams(location.search);
@@ -292,7 +319,7 @@ async function boot() {
   else route();
   if (q.get('tpl')) setTimeout(() => openTemplate(q.get('tpl')), 300);
   if (q.get('live')) setTimeout(() => watchLive(q.get('live')), 300);
-  rt.connect();
+  if (!S.device) rt.connect();
   document.addEventListener('visibilitychange', () => document.hidden ? pauseAll() : resumeCur());
   if ('serviceWorker' in navigator && !NATIVE && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
   setTimeout(() => import('./seg.js').then(m => S.me && !S.me.faces.length && m.warmup()).catch(() => {}), 4000);

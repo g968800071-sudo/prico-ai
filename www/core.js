@@ -2,6 +2,7 @@
 import { t, lang } from './i18n.js';
 import { I } from './icons.js';
 import { assessServer } from './capabilities.js';
+import { acceptServerUrl } from './device.js';
 export { I };
 export const S = { me: null, cat: null, tok: localStorage.getItem('prico.tok') || '', muted: true, route: 'home', apiBase: '' };
 export const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -10,13 +11,22 @@ export let BASE = '';
 export const origin = () => NATIVE ? BASE : location.origin;
 export const abs = u => !u ? u : /^(https?:|data:|blob:)/.test(u) ? u : BASE + u;
 export async function loadServer() {
-  if (!NATIVE) { S.apiBase = ''; return ''; }
-  let j = {};
-  try { j = await (await fetch('server.json', { cache: 'no-store' })).json(); } catch { j = {}; }
-  const u = String(j.apiBase || '').trim().replace(/\/$/, '');
-  BASE = /^https?:\/\/[^/\s]+(?::\d+)?(?:\/[^\s]*)?$/.test(u) ? u : '';
+  let fromFile = '';
+  if (NATIVE) {
+    try { fromFile = String((await (await fetch('server.json', { cache: 'no-store' })).json()).apiBase || ''); } catch { fromFile = ''; }
+  }
+  const saved = (() => { try { return localStorage.getItem('prico.server') || ''; } catch { return ''; } })();
+  const picked = acceptServerUrl(saved || fromFile);
+  BASE = picked.ok ? picked.url : '';
   S.apiBase = BASE;
+  S.device = NATIVE && !BASE;
+  S.blockedHost = picked.reason === 'blocked_host';
   return BASE;
+}
+export function useDeviceMode() {
+  BASE = '';
+  S.apiBase = '';
+  S.device = true;
 }
 export async function generationGate() {
   const health = await api('/api/health');

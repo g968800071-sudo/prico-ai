@@ -109,6 +109,7 @@ export async function openTemplate(id, opt = {}) {
   requestAnimationFrame(drawText);
   foot.onclick = async () => {
     if (multi) { toast(t('multiFaceBody'), true); return; }
+    if (S.device) { toast(t('deviceAiOff'), true); return; }
     let health;
     try { health = await generationGate(); } catch (e) { toast(t(e.code === 'server_unsafe_ai' ? 'serverUnsafeAi' : 'e_' + (e.code || 'generic')), true); return; }
     if (!health.ai?.available) { toast(t('e_ai_unavailable'), true); return; }
@@ -226,7 +227,14 @@ export async function showResult(m, opt = {}) {
     try { const r = await api('/api/posts', { body: { mediaId: m.id, caption: caption + (tags.length ? ' ' + tags.slice(0, 3).join(' ') : ''), challenge: ch } }); postId = r.post.id; toast(t('posted')); confetti(); sh.close(); const { reset, switchTab } = await import('./feed.js'); go('home'); ch ? switchTab('challenge') : reset(r.post); }
     catch (e) { fail(e); }
   };
-  $('.post', foot).onclick = () => doPost(!!opt.challenge);
-  const pc = $('.postCh', foot); if (pc) pc.onclick = () => doPost(true);
+  if (m.device) {
+    body.append(h(`<div class="mut xs" style="text-align:center;margin-top:8px">${esc(t('deviceExportNote'))}</div>`));
+    $('.post', foot).textContent = t('saved');
+    $('.post', foot).onclick = async () => { const f = await prepFile(m.url, m.type); if (f) { download(f); toast(t('saved')); } };
+    $('.postCh', foot)?.remove();
+  } else {
+    $('.post', foot).onclick = () => doPost(!!opt.challenge);
+    const pc = $('.postCh', foot); if (pc) pc.onclick = () => doPost(true);
+  }
   return sh;
 }

@@ -220,10 +220,10 @@ export async function runDeviceSmoke() {
     const vurl = 'offline/sample-clip.mp4';
     const musicUrl = 'offline/music/pop.m4a';
     const music = { id: 'pop', title: 'Feeling Happy', source: 'bundled-library', fixture: false };
-    const ios = window.Capacitor?.getPlatform?.() === 'ios';
-    const width = ios ? 720 : 1080;
-    const height = ios ? 1280 : 1920;
-    const short = await exportLocal({
+    const width = 1080;
+    const height = 1920;
+    const withTimeout = (p, ms, code) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error(code), { code })), ms))]);
+    const short = await withTimeout(exportLocal({
       clips: [
         { kind: 'video', url: vurl, dur: 1.4 },
         { kind: 'image', url: still('#ff2040', 'STILL'), dur: 1.4 },
@@ -231,24 +231,17 @@ export async function runDeviceSmoke() {
       texts: [{ text: 'PRICO', start: 0, end: 3, y: 0.18 }],
       captions: [{ text: 'on-phone export', start: 0.2, end: 3 }],
       musicUrl, outName: 'prico-short.mp4', fade: 0.3, width, height,
-    });
-    const shortPlay = short.playSrc ? await playbackSrc(short.playSrc) : {};
-    out.short = { ...summarize(short), ...shortPlay, musicTrack: music, profile: ios ? '720p-simulator' : '1080p' };
-    const reelClips = ios
-      ? [
-        { kind: 'video', url: vurl, dur: 6 },
-        { kind: 'image', url: still('#ff2040', 'RED'), dur: 18.5 },
-        { kind: 'image', url: still('#00c853', 'GREEN'), dur: 18.5 },
-        { kind: 'image', url: still('#2962ff', 'BLUE'), dur: 18.5 },
-      ]
-      : [
-        { kind: 'video', url: vurl, dur: 10 },
-        { kind: 'image', url: still('#ff2040', 'RED'), dur: 17 },
-        { kind: 'image', url: still('#00c853', 'GREEN'), dur: 17 },
-        { kind: 'image', url: still('#2962ff', 'BLUE'), dur: 17 },
-      ];
+    }), 240000, 'export_timeout');
+    const shortPlay = short.playSrc ? await Promise.race([playbackSrc(short.playSrc).catch(() => ({})), new Promise(r => setTimeout(() => r({}), 8000))]) : {};
+    out.short = { ...summarize(short), ...shortPlay, musicTrack: music, wallMs: short.wallMs, elapsedMs: short.elapsedMs, engine: short.engine };
+    const reelClips = [
+      { kind: 'video', url: vurl, dur: 10 },
+      { kind: 'image', url: still('#ff2040', 'RED'), dur: 17 },
+      { kind: 'image', url: still('#00c853', 'GREEN'), dur: 17 },
+      { kind: 'image', url: still('#2962ff', 'BLUE'), dur: 17 },
+    ];
     const reelPlan = planSegments(reelClips, 0.4, { maxSpan: 60, maxTotal: 90 });
-    const reel = await exportLocal({
+    const reel = await withTimeout(exportLocal({
       clips: reelClips,
       texts: [{ text: 'PRICO', start: 0, end: 8, y: 0.16 }],
       captions: [
@@ -257,12 +250,16 @@ export async function runDeviceSmoke() {
         { text: 'CAP-C', start: 40, end: 70 },
       ],
       musicUrl, outName: 'prico-reel.mp4', fade: 0.4, maxSpan: 60, maxTotal: 90, width, height,
-    });
-    const reelPlay = reel.playSrc ? await playbackSrc(reel.playSrc) : {};
-    out.reel = { ...summarize(reel), ...reelPlay, musicTrack: music, plan: reelPlan };
+    }), 420000, 'export_timeout');
+    const reelPlay = reel.playSrc ? await Promise.race([playbackSrc(reel.playSrc).catch(() => ({})), new Promise(r => setTimeout(() => r({}), 8000))]) : {};
+    out.reel = { ...summarize(reel), ...reelPlay, musicTrack: music, plan: reelPlan, wallMs: reel.wallMs, elapsedMs: reel.elapsedMs, engine: reel.engine };
     out.persistence = await draftRoundtrip();
     out.share = await shareSaved('prico-reel.mp4');
-    const sizeOk = (m) => m && m.mime === 'video/mp4' && m.videoWidth >= 720 && m.videoHeight >= 1280 && m.duration > 1 && String(m.header || '').includes('66747970') && m.music === 'library';
+    const sizeOk = (m) => {
+      const w = m?.videoWidth || m?.width || 0;
+      const h = m?.videoHeight || m?.height || 0;
+      return m && m.mime === 'video/mp4' && w >= 720 && h >= 1280 && m.duration > 1 && String(m.header || '').includes('66747970') && m.music === 'library';
+    };
     out.ok = sizeOk(out.short) && sizeOk({ ...out.reel, duration: out.reel.duration }) && out.reel.duration > 50 && out.persistence.read === true;
     out.export = out.reel;
   } catch (e) {

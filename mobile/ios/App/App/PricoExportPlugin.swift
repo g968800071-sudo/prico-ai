@@ -14,7 +14,8 @@ public class PricoExportPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "begin", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "frame", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "audio", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "finish", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "finish", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "exportReel", returnType: CAPPluginReturnPromise)
     ]
     private let q = DispatchQueue(label: "studio.pricop.export")
     private var writer: AVAssetWriter?
@@ -30,6 +31,16 @@ public class PricoExportPlugin: CAPPlugin, CAPBridgedPlugin {
     private var channels = 2
     private var dir: URL?
     private var pcm: FileHandle?
+
+    @objc func exportReel(_ call: CAPPluginCall) {
+        q.async {
+            do {
+                guard let project = call.getString("project") else { throw self.err("project") }
+                let result = try PricoReelExporter.export(project: project, copyTo: call.getString("copyTo"))
+                call.resolve(result)
+            } catch { call.reject(error.localizedDescription) }
+        }
+    }
 
     @objc func readAsset(_ call: CAPPluginCall) {
         q.async {

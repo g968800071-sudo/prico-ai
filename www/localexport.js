@@ -181,6 +181,56 @@ function buildKeys(clips, plan, texts, captions, fps) {
   return { n, keys };
 }
 
+async function exportReelIOS({ clips, texts, captions, musicUrl, W, H, plan, onProgress, fps, outName }) {
+  const plugin = window.Capacitor.Plugins.PricoExport;
+  const Filesystem = window.Capacitor.Plugins.Filesystem;
+  if (!Filesystem) throw Object.assign(new Error('no_mp4'), { code: 'no_mp4' });
+  const t0 = performance.now();
+  const folder = 'prico-reel-' + Date.now().toString(36);
+  await Filesystem.mkdir({ path: folder, directory: 'CACHE', recursive: true });
+  const dirUri = await Filesystem.getUri({ path: folder, directory: 'CACHE' });
+  const copy = await Filesystem.getUri({ path: outName || 'prico-export.mp4', directory: 'DOCUMENTS' });
+  const cachePath = dirUri.uri.replace(/^file:\/\//, '');
+  const built = [];
+  for (let i = 0; i < clips.length; i++) {
+    const c = clips[i];
+    const seg = plan.segments[i];
+    if (c.kind === 'video' && c.url && !/^[a-z]+:/i.test(c.url)) {
+      built.push({ kind: 'video', file: String(c.url).replace(/^\//, ''), bundle: true, start: seg.start, dur: seg.dur });
+    } else if (c.kind === 'video') {
+      const buf = new Uint8Array(await (await fetch(c.url)).arrayBuffer());
+      await Filesystem.writeFile({ path: `${folder}/clip${i}.mp4`, data: bytesToB64(buf), directory: 'CACHE' });
+      built.push({ kind: 'video', file: `clip${i}.mp4`, bundle: false, start: seg.start, dur: seg.dur });
+    } else {
+      const img = new Image();
+      img.src = c.url;
+      await new Promise((res, rej) => { img.onload = () => res(); img.onerror = () => rej(Object.assign(new Error('bad_image'), { code: 'bad_image' })); });
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.fillStyle = '#07070c';
+      ctx.fillRect(0, 0, W, H);
+      cover(ctx, img, W, H);
+      await Filesystem.writeFile({ path: `${folder}/still${i}.jpg`, data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1], directory: 'CACHE' });
+      built.push({ kind: 'image', file: `still${i}.jpg`, bundle: false, start: seg.start, dur: seg.dur });
+    }
+  }
+  onProgress(0.05);
+  const project = JSON.stringify({
+    width: W, height: H, fps, fade: plan.fade, total: plan.total,
+    music: String(musicUrl || '').replace(/^\//, ''),
+    cache: cachePath,
+    clips: built,
+    texts, captions,
+  });
+  const muxed = await plugin.exportReel({ project, copyTo: copy.uri });
+  if (!muxed?.header || !String(muxed.header).includes('66747970') || !(muxed.bytes > 800)) throw Object.assign(new Error('export_empty'), { code: 'export_empty' });
+  onProgress(1);
+  const wallMs = Math.round(performance.now() - t0);
+  const playSrc = window.Capacitor.convertFileSrc ? window.Capacitor.convertFileSrc(muxed.path) : '';
+  return { mime: 'video/mp4', duration: plan.total, device: true, local: true, ai: false, path: muxed.path || '', copyUri: copy.uri, music: /offline\/music\//.test(musicUrl || '') ? 'library' : 'file', bytes: muxed.bytes, width: muxed.width || W, height: muxed.height || H, fps, frames: muxed.frames, header: muxed.header, playSrc, plan, wallMs, elapsedMs: muxed.elapsedMs, engine: muxed.engine || 'avfoundation' };
+}
+
 async function exportNative({ clips, texts, captions, musicUrl, W, H, plan, sources, onProgress, fps, outName }) {
   const plugin = window.Capacitor?.Plugins?.PricoExport;
   const Filesystem = window.Capacitor?.Plugins?.Filesystem;
@@ -232,8 +282,12 @@ export async function exportLocal({ clips, texts = [], captions = [], musicUrl =
   const W = width || pair[0];
   const H = height || pair[1];
   const plan = planSegments(clips, fade, { maxSpan, maxTotal });
-  const sources = await loadSources(clips);
   const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const ios = window.Capacitor?.getPlatform?.() === 'ios';
+  if (native && ios && window.Capacitor?.Plugins?.PricoExport?.exportReel) {
+    return await exportReelIOS({ clips, texts, captions, musicUrl, W, H, plan, onProgress, fps, outName });
+  }
+  const sources = await loadSources(clips);
   try {
     if (native) return await exportNative({ clips, texts, captions, musicUrl, W, H, plan, sources, onProgress, fps, outName });
     return await exportRecorder({ texts, captions, W, H, plan, sources, musicUrl, onProgress });

@@ -14,7 +14,7 @@ const preview = (m, mine) => !m ? '' : (mine ? t('you') + ': ' : '') + (m.type =
 export function mountInbox(el) {
   root = el;
   el.innerHTML = `<div class="pad"><div class="hdr"><h1>${esc(t('tabInbox'))}</h1><span class="sp"></span><button class="iconBtn newc" aria-label="${esc(t('newChat'))}">✏️</button></div>
-    <div class="segs"><button data-s="msgs" class="on">${esc(t('messages'))}<i class="bdg"></i></button><button data-s="act">${esc(t('activity'))}<i class="bdg"></i></button></div><div class="ibody"></div></div>`;
+    <div class="segs"><button data-s="msgs" class="on">${esc(t('messages'))}<i class="bdg"></i></button><button data-s="act">${esc(t('activity'))}<i class="bdg"></i></button></div><div class="mut xs scopeNote">${esc(t('inboxScope'))}</div><div class="ibody"></div></div>`;
   $('.newc', el).onclick = () => newChat();
   $$('.segs button', el).forEach(b => b.onclick = () => { seg = b.dataset.s; $$('.segs button', el).forEach(z => z.classList.toggle('on', z === b)); draw(); });
   draw();

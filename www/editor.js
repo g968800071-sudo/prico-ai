@@ -4,6 +4,7 @@
 // Final 720p MP4 is rendered by ffmpeg on the server (POST /api/edit).
 import { t, lang } from './i18n.js';
 import { S, I, api, h, esc, abs, toast, fail, sheet, haptic, upload, $, $$ } from './core.js';
+import { exportLocal } from './localexport.js';
 import { needAuth } from './app.js';
 import { CSS as FCSS } from './fx.js';
 
@@ -45,7 +46,7 @@ function probeMedia(blob, kind) {
 }
 
 export async function openEditor(opt = {}) {
-  await needAuth();
+  if (!S.device) await needAuth();
   let draftId = opt.draft || null, P, media = new Map();
   const blank = () => ({ aspect: '9:16', clips: [], texts: [], stickers: [], pip: null, music: null, voices: [], captions: [], capStyle: { color: '#ffffff', hl: '#ffe14d', font: 'classic', y: 0.74, bg: false }, origVol: 1 });
   if (!draftId && !opt.files?.length) {
@@ -166,7 +167,7 @@ export async function openEditor(opt = {}) {
   function syncAudio(force) {
     const tot = total();
     if (P.music) {
-      const want = abs(`/api/music/${P.music.id}.m4a`); if (music.dataset.id !== P.music.id) { music.src = want; music.dataset.id = P.music.id; music.loop = true; force = true; }
+      const want = abs(S.cat?.music?.find(x => x.id === P.music.id)?.url || `/api/music/${P.music.id}.m4a`); if (music.dataset.id !== P.music.id) { music.src = want; music.dataset.id = P.music.id; music.loop = true; force = true; }
       let v = P.music.vol; if (T < P.music.fadeIn) v *= T / Math.max(.01, P.music.fadeIn); if (T > tot - P.music.fadeOut) v *= Math.max(0, (tot - T) / Math.max(.01, P.music.fadeOut));
       music.volume = Math.min(1, Math.max(0, v));
       const mt = (P.music.offset + T) % (music.duration || 32);
@@ -331,7 +332,7 @@ export async function openEditor(opt = {}) {
     const body = h(`<div><div class="chipRow mcats"><button class="chip2 on" data-c="all">${esc(t('all'))}</button>${cats.map(c => `<button class="chip2" data-c="${c}">${esc(t('mc_' + c))}</button>`).join('')}</div><div class="col mlist" style="margin-top:10px"></div><div class="mut xs" style="margin-top:10px;text-align:center">♪ ${esc(t('musicFree'))}</div></div>`);
     const sh = sheet({ title: '🎵 ' + t('edMusic'), body, full: true, cls: 'edSheet', onClose: () => prev.pause() });
     const list = () => { $('.mlist', body).innerHTML = tracks.filter(m => cat === 'all' || m.cat === cat).map(m => `<div class="mItem ${P.music?.id === m.id ? 'on' : ''}"><button class="mPlay" data-id="${m.id}">▶</button><div class="sp"><b>${esc(m.name)}</b><div class="mut xs">${esc(t('mc_' + m.cat))} · ${m.bpm} BPM</div></div><button class="btn sm pri use" data-id="${m.id}">${esc(t('edUse'))}</button></div>`).join('');
-      $$('.mPlay', body).forEach(b => b.onclick = () => { if (playingId === b.dataset.id) { prev.pause(); playingId = null; b.textContent = '▶'; return; } $$('.mPlay', body).forEach(z => z.textContent = '▶'); prev.src = abs(`/api/music/${b.dataset.id}.m4a`); prev.play().catch(() => {}); playingId = b.dataset.id; b.textContent = '⏸'; });
+      $$('.mPlay', body).forEach(b => b.onclick = () => { if (playingId === b.dataset.id) { prev.pause(); playingId = null; b.textContent = '▶'; return; } $$('.mPlay', body).forEach(z => z.textContent = '▶'); prev.src = abs(tracks.find(x => x.id === b.dataset.id)?.url || `/api/music/${b.dataset.id}.m4a`); prev.play().catch(() => {}); playingId = b.dataset.id; b.textContent = '⏸'; });
       $$('.use', body).forEach(b => b.onclick = () => { P.music = { id: b.dataset.id, vol: P.music?.vol ?? .7, fadeIn: P.music?.fadeIn ?? .5, fadeOut: P.music?.fadeOut ?? 1.5, offset: 0 }; prev.pause(); sh.close(); commit(); toast('🎵 ' + tracks.find(x => x.id === b.dataset.id)?.name); }); };
     $$('.mcats button', body).forEach(b => b.onclick = () => { cat = b.dataset.c; $$('.mcats button', body).forEach(z => z.classList.toggle('on', z === b)); list(); });
     list();
@@ -438,6 +439,19 @@ export async function openEditor(opt = {}) {
   async function exportVideo() {
     if (!P.clips.length) return toast(t('edAddMedia'), true);
     pause(); await saveDraft();
+    if (S.device) {
+      const sh = sheet({ title: '🎬 ' + t('edExport'), body: `<div class="col" style="align-items:center;text-align:center"><div class="spin"></div><div class="mut sm">${esc(t('deviceExportNote'))}</div></div>`, cls: 'edSheet' });
+      try {
+        const clips = P.clips.map(c => { const m = media.get(c.lid); return { kind: m.kind, url: m.url, dur: Math.max(0.6, ((c.out || m.dur || 2) - (c.in || 0)) / (c.speed || 1)) }; });
+        const musicUrl = P.music ? abs(S.cat?.music?.find(x => x.id === P.music.id)?.url || '') : '';
+        const out = await exportLocal({ clips, texts: P.texts, captions: P.captions, musicUrl, aspect: P.aspect });
+        sh.close();
+        const url = URL.createObjectURL(out.blob);
+        const { showResult } = await import('./create.js');
+        showResult({ type: 'video', url, local: true, ai: false, device: true, poster: media.get(P.clips[0].lid)?.thumb || url });
+      } catch (e) { sh.close(); fail(e); }
+      return;
+    }
     const body = h(`<div class="col" style="align-items:center;text-align:center"><div class="spin"></div><div class="st mut sm">${esc(t('edUploading'))}</div><div class="bar" style="width:100%"><i style="width:0"></i></div><div class="mut xs">${esc(t('edFreeExport'))}</div></div>`);
     const sh = sheet({ title: '🎬 ' + t('edExport'), body, cls: 'edSheet' });
     try {

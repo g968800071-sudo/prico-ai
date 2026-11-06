@@ -1,6 +1,6 @@
 // Create: template catalog, template editor (faces + text + stickers), face manager, generation progress and result.
 import { t, lang } from './i18n.js';
-import { S, I, api, h, esc, abs, toast, fail, sheet, haptic, shareRow, prepFile, copyText, confetti, download, PUBLIC, $, $$, sleep } from './core.js';
+import { S, I, api, h, esc, abs, toast, fail, sheet, haptic, shareRow, prepFile, copyText, confetti, download, origin, generationGate, $, $$, sleep } from './core.js';
 import { needAuth, go, openShop, refreshMe, walletChip } from './app.js';
 
 let root, q = '', grp = 'all';
@@ -46,7 +46,7 @@ function draw() {
     hero.onclick = () => openTemplate(ct.id, { challenge: true }); body.append(hero);
   }
   // reels promo
-  const promo = h(`<button class="reelHero" style="width:100%;text-align:start;margin-top:12px"><div class="k" style="font-size:12px;font-weight:800;color:var(--a3);letter-spacing:.08em">🎬 AI REELS</div><h2 style="margin:6px 0 4px">${esc(t('reelsTitle'))}</h2><div class="mut sm" style="max-width:80%">${esc(t('reelsSub'))}</div></button>`);
+  const promo = h(`<button class="reelHero" style="width:100%;text-align:start;margin-top:12px"><div class="k" style="font-size:12px;font-weight:800;color:var(--a3);letter-spacing:.08em">🎬 ${esc(t('reelsKicker'))}</div><h2 style="margin:6px 0 4px">${esc(t('reelsTitle'))}</h2><div class="mut sm" style="max-width:80%">${esc(t('reelsSub'))}</div></button>`);
   promo.onclick = () => go('reels'); body.append(promo);
   for (const [g, name] of Object.entries(S.cat.groups)) {
     const items = list.filter(x => x.group === g); if (!items.length) continue;
@@ -73,7 +73,11 @@ export async function openTemplate(id, opt = {}) {
     <div class="colors">${['#ffffff', '#ffe14d', '#ff4f9a', '#4de1ff'].map((c, i) => `<button data-c="${c}" class="${i ? '' : 'on'}" style="background:${c}"></button>`).join('')}</div></div>
     <div class="lbl">${esc(t('stickers'))}</div><div class="stkGrid">${S.cat.stickers.map(s => `<button data-s="${s}"><img src="stickers/${s}.svg" alt="" loading="lazy"></button>`).join('')}</div>
   </div>`);
-  const foot = h(`<button class="btn pri wide go">${I.sparkle}<span>${esc(t(x.kind === 'video' ? 'makeVideo' : 'makePhoto'))}</span></button>`);
+  const ai = S.cat?.ai || { available: false, reason: 'provider_off' };
+  const multi = x.faces > 1 || x.identity === 'unsupported';
+  const foot = h(`<button class="btn pri wide go" ${multi ? 'disabled' : ''}>${I.sparkle}<span>${esc(t(multi ? 'multiFaceTitle' : ai.available ? (x.kind === 'video' ? 'makeVideo' : 'makePhoto') : 'aiUnavailableCta'))}</span></button>`);
+  if (multi) body.prepend(h(`<div class="aiOff"><b>${esc(t('multiFaceTitle'))}</b><div>${esc(t('multiFaceBody'))}</div></div>`));
+  else if (!ai.available) body.prepend(h(`<div class="aiOff"><b>${esc(t('aiUnavailableTitle'))}</b><div>${esc(t('aiUnavailableBody'))}</div><div class="mut xs" style="margin-top:6px">${esc(t('aiModelLine', { model: ai.videoModel || '' }))} · ${esc(t('reason_' + (ai.reason || 'provider_off')))}</div></div>`));
   const sh = sheet({ title: '', body, foot, full: true });
   const stage = $('.stage', body), ovt = $('.ovText', body);
   const drawText = () => { ovt.textContent = ov.text; ovt.style.color = ov.color; ovt.style.fontSize = (stage.clientWidth * 0.075) + 'px'; ovt.style.top = ov.pos === 'top' ? '12%' : ov.pos === 'center' ? '50%' : '72%'; ovt.style.transform = ov.pos === 'center' ? 'translateY(-50%)' : ''; };
@@ -104,6 +108,11 @@ export async function openTemplate(id, opt = {}) {
   if (!S.me.faces.length) { faces(); addFace().then(f => { if (f) pick = [f.id]; faces(); }); } else { pick = S.me.faces.slice(0, x.faces).map(f => f.id); faces(); }
   requestAnimationFrame(drawText);
   foot.onclick = async () => {
+    if (multi) { toast(t('multiFaceBody'), true); return; }
+    if (S.device) { toast(t('deviceAiOff'), true); return; }
+    let health;
+    try { health = await generationGate(); } catch (e) { toast(t(e.code === 'server_unsafe_ai' ? 'serverUnsafeAi' : 'e_' + (e.code || 'generic')), true); return; }
+    if (!health.ai?.available) { toast(t('e_ai_unavailable'), true); return; }
     if (!pick.length) { toast(t('e_no_face'), true); return addFace().then(f => { if (f) { pick = [f.id]; faces(); } }); }
     haptic(15);
     try {
@@ -175,7 +184,7 @@ export async function progress(job, faceUrl) {
         shown = Math.max(shown, j.progress * 100, shown + (j.status === 'running' ? 1.2 : 0)); $('.bar i', el).style.width = Math.min(97, shown) + '%';
         $('.q', el).textContent = j.status === 'queued' && j.ahead ? t('inQueue', { n: j.ahead }) : '';
         if (j.status === 'done') { $('.bar i', el).style.width = '100%'; await sleep(350); return j.media; }
-        if (j.status === 'failed' || j.status === 'error') throw Object.assign(new Error('generation_failed'), { code: j.error === 'unsafe' ? 'unsafe_prompt' : 'generation_failed' });
+        if (j.status === 'failed' || j.status === 'error') throw Object.assign(new Error(j.error || 'generation_failed'), { code: j.error || 'generation_failed' });
       }
       await sleep(1100);
     }
@@ -190,6 +199,10 @@ export async function showResult(m, opt = {}) {
   const body = h(`<div>
     <div class="res">${m.type === 'video' ? `<video src="${abs(m.url)}" poster="${abs(m.poster)}" playsinline autoplay loop controls></video>` : `<img src="${abs(m.url)}" alt="">`}</div>
     ${m.demo ? `<div class="mut xs" style="text-align:center;margin-top:10px">ⓘ ${esc(t('demoNote'))}</div>` : ''}
+    ${m.ai ? `<div class="mut xs" style="text-align:center;margin-top:10px">✦ ${esc(t('aiResultNote', { model: m.model || '' }))}</div>` : ''}
+    ${!m.ai && m.composite ? `<div class="mut xs" style="text-align:center;margin-top:10px">ⓘ ${esc(t('compositeNote'))}</div>` : ''}
+    ${!m.ai && m.local && !m.composite ? `<div class="mut xs" style="text-align:center;margin-top:10px">ⓘ ${esc(t('localReelNote'))}</div>` : ''}
+    <div class="mut xs scopeNote" style="text-align:center">${esc(t('shareScope'))}</div>
     <div class="lbl">${esc(t('shareTo'))}</div><div class="srow"></div>
     <div class="lbl">${esc(t('captionIdeas'))}</div><div class="col caps"><div class="sk" style="height:46px;border-radius:14px"></div></div>
     <div class="lbl">${esc(t('hashtags'))}</div><div class="tags"></div>
@@ -201,7 +214,7 @@ export async function showResult(m, opt = {}) {
   let caption = '', tags = [];
   const full = () => [caption, tags.join(' ')].filter(Boolean).join('\n\n');
   let postId = null;
-  $('.srow', body).replaceWith(shareRow(async () => ({ url: m.url, type: m.type, caption: full(), link: postId ? `${PUBLIC}/p/${postId}` : PUBLIC })));
+  $('.srow', body).replaceWith(shareRow(async () => ({ url: m.url, type: m.type, caption: full(), link: postId ? `${origin()}/p/${postId}` : origin() })));
   try {
     const c = m.captions || await api(`/api/captions?media=${m.id}`);
     const caps = $('.caps', body); caps.innerHTML = ''; tags = c.hashtags || []; caption = (c.captions || [])[0] || '';
@@ -214,7 +227,14 @@ export async function showResult(m, opt = {}) {
     try { const r = await api('/api/posts', { body: { mediaId: m.id, caption: caption + (tags.length ? ' ' + tags.slice(0, 3).join(' ') : ''), challenge: ch } }); postId = r.post.id; toast(t('posted')); confetti(); sh.close(); const { reset, switchTab } = await import('./feed.js'); go('home'); ch ? switchTab('challenge') : reset(r.post); }
     catch (e) { fail(e); }
   };
-  $('.post', foot).onclick = () => doPost(!!opt.challenge);
-  const pc = $('.postCh', foot); if (pc) pc.onclick = () => doPost(true);
+  if (m.device) {
+    body.append(h(`<div class="mut xs" style="text-align:center;margin-top:8px">${esc(t('deviceExportNote'))}</div>`));
+    $('.post', foot).textContent = t('saved');
+    $('.post', foot).onclick = async () => { const f = await prepFile(m.url, m.type); if (f) { download(f); toast(t('saved')); } };
+    $('.postCh', foot)?.remove();
+  } else {
+    $('.post', foot).onclick = () => doPost(!!opt.challenge);
+    const pc = $('.postCh', foot); if (pc) pc.onclick = () => doPost(true);
+  }
   return sh;
 }

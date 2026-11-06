@@ -104,7 +104,7 @@ export default {
   deviceAccount: "Projects stay on this phone. An account, the feed, messages and LIVE need a server you choose. The old public demo site is not used.",
   deviceAiOff: "Real AI video is off on this phone. Nothing is sent to a model.",
   devicePayOff: "Payments are off. Nothing is charged and nothing is granted.",
-  deviceExportNote: "Saved from an on-phone edit. Not a generated AI video.",
+  deviceExportNote: "H.264 MP4 saved from an on-phone edit. Not a generated AI video.",
   serverBlocked: "That address is the old public demo. This app will not use it.",
   serverSaved: "Server saved. Reloading…",
   serverField: "Optional server address",

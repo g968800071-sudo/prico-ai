@@ -24,7 +24,7 @@ import * as tts from './tts.js';
 import * as rt from './rt.js';
 import * as studio from './studio.js';
 import { brandImage, brandVideo, overlayPng } from './render.js';
-const VERSION = '1.2.0';
+const VERSION = '1.4.0';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WWW = path.join(ROOT, 'www');

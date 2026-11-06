@@ -59,6 +59,13 @@
 	<string>PRICO AI reads photos and videos you choose to edit.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>PRICO AI saves exports to your photo library when you ask.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>PRICO AI contacts a server address you type. It does not use the old public demo.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -1,6 +1,8 @@
 // PRICO AI by PRICOP.studio — app shell: boot, router, tabs, auth, onboarding, Top, Me, profiles, settings, shop.
 import { t, setLang, detect, LANGS, lang } from './i18n.js';
 import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, setToken, closeAll, confetti, NATIVE, $, $$, errMsg, loadServer, paymentsGate, useDeviceMode } from './core.js';
+import { runDeviceSmoke } from './devicesmoke.js';
+window.__pricoDeviceSmoke = runDeviceSmoke;
 import { loadOfflineCatalog, probeServer } from './device.js';
 import { mountHome, pauseAll, resumeCur, reset as resetFeed } from './feed.js';
 import { mountCreate, openTemplate, manageFaces } from './create.js';
@@ -187,7 +189,7 @@ function openSettings() {
     <button class="li sfty">${I.shield}<span class="sp">${esc(t('safety'))}</span>${I.chev}</button>
     <button class="li inst" style="${NATIVE ? 'display:none' : ''}">${I.download}<span class="sp">${esc(t('install'))}</span></button>
     <button class="li out">${I.logout}<span class="sp">${esc(t('logout'))}</span></button>
-    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.3.0 · © PRICOP.studio<br>${esc(S.device ? t('deviceHomeTitle') : S.apiBase ? t('serverConfigured', { host: S.apiBase }) : t('serverThisSite'))}<br>${esc(S.cat?.ai?.available ? t('aiStatusOn') : t('aiStatusOff', { reason: t('reason_' + (S.cat?.ai?.reason || 'device')) }))}<br>${esc(t('credit'))}</div></div>`);
+    <div class="mut xs" style="margin-top:18px;line-height:1.5">PRICO AI · ${esc(t('version'))} 1.4.0 · © PRICOP.studio<br>${esc(S.device ? t('deviceHomeTitle') : S.apiBase ? t('serverConfigured', { host: S.apiBase }) : t('serverThisSite'))}<br>${esc(S.cat?.ai?.available ? t('aiStatusOn') : t('aiStatusOff', { reason: t('reason_' + (S.cat?.ai?.reason || 'device')) }))}<br>${esc(t('credit'))}</div></div>`);
   const sh = sheet({ title: t('settings'), body, full: true });
   $$('.lg', body).forEach(b => b.onclick = async () => {
     const l = b.dataset.l; l === 'auto' ? localStorage.removeItem('prico.lang') : localStorage.setItem('prico.lang', l);
@@ -320,8 +322,9 @@ async function boot() {
   if (q.get('tpl')) setTimeout(() => openTemplate(q.get('tpl')), 300);
   if (q.get('live')) setTimeout(() => watchLive(q.get('live')), 300);
   if (!S.device) rt.connect();
+  window.__pricoReady = true;
   document.addEventListener('visibilitychange', () => document.hidden ? pauseAll() : resumeCur());
   if ('serviceWorker' in navigator && !NATIVE && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
   setTimeout(() => import('./seg.js').then(m => S.me && !S.me.faces.length && m.warmup()).catch(() => {}), 4000);
 }
-boot().catch(e => { console.error(e); document.body.insertAdjacentHTML('beforeend', `<div class="empty" style="position:fixed;inset:0;z-index:99;background:var(--bg)"><div class="big">📡</div><div>${esc(t('e_network'))}</div><button class="btn pri" onclick="location.reload()">${esc(t('retry'))}</button></div>`); });
+boot().catch(e => { console.error(e); window.__pricoReady = true; window.__pricoBootError = String(e && (e.code || e.message) || e); document.body.insertAdjacentHTML('beforeend', `<div class="empty" style="position:fixed;inset:0;z-index:99;background:var(--bg)"><div class="big">📡</div><div>${esc(t('e_network'))}</div><button class="btn pri" onclick="location.reload()">${esc(t('retry'))}</button></div>`); });

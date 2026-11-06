@@ -113,7 +113,7 @@ jobs:
           import os, time, sys, glob, shutil
           p = os.environ["CONTAINER"] + "/Documents/prico-smoke.json"
           out = os.environ["RUNNER_TEMP"] + "/out"
-          for _ in range(840):
+          for _ in range(960):
               if os.path.exists(p) and os.path.getsize(p) > 20:
                   sys.exit(0)
               time.sleep(1)

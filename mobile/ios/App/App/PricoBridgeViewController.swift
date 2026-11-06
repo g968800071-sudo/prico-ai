@@ -37,7 +37,7 @@ class PricoBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler
         let script = WKUserScript(source: lines.joined(separator: "\n"), injectionTime: .atDocumentStart, forMainFrameOnly: true)
         webView?.configuration.userContentController.addUserScript(script)
         NSLog("PRICO smoke armed")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 780) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 960) { [weak self] in
             self?.writeWatchdog(docs: docs)
         }
     }

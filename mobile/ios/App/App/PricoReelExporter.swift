@@ -95,9 +95,9 @@ enum PricoReelExporter {
         guard writer.startWriting() else { throw writer.error ?? PricoReelError.message("writer") }
         writer.startSession(atSourceTime: .zero)
         let frames = max(1, Int((total * Double(fps)).rounded()))
-        let budget = min(400.0, max(160.0, Double(frames) * 0.2))
+        let budget = min(540.0, max(180.0, Double(frames) * 0.28))
         try appendVideo(frames: frames, fps: fps, total: total, fade: fade, clips: clips, texts: texts, captions: captions, width: width, height: height, input: videoIn, adaptor: adaptor, writer: writer, budget: budget)
-        try appendAudio(pcm, seconds: total, input: audioIn, writer: writer, budget: 60)
+        try appendAudio(pcm, seconds: total, input: audioIn, writer: writer, budget: 90)
         let done = DispatchSemaphore(value: 0)
         writer.finishWriting { done.signal() }
         if done.wait(timeout: .now() + 30) == .timedOut { throw PricoReelError.message("finish timeout") }
@@ -224,37 +224,74 @@ enum PricoReelExporter {
         return PCM(data: data, rate: 44100, channels: 2)
     }
 
+    private struct Raster { let bytes: Data; let bytesPerRow: Int }
+
     private static func appendVideo(frames: Int, fps: Int, total: Double, fade: Double, clips: [Clip], texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, input: AVAssetWriterInput, adaptor: AVAssetWriterInputPixelBufferAdaptor, writer: AVAssetWriter, budget: Double) throws {
         let started = CFAbsoluteTimeGetCurrent()
-        var lastKey = ""
-        var lastBuffer: CVPixelBuffer?
-        var draws = 0
+        var cache: [String: Raster] = [:]
         for frame in 0..<frames {
-            if CFAbsoluteTimeGetCurrent() - started > budget { throw PricoReelError.message("video encode timeout \(frame)/\(frames) draws \(draws)") }
+            if CFAbsoluteTimeGetCurrent() - started > budget { throw PricoReelError.message("video encode timeout \(frame)/\(frames) draws \(cache.count)") }
             let time = min(total - 0.0001, Double(frame) / Double(fps))
             let key = signature(clips: clips, time: time, fade: fade, texts: texts, captions: captions)
-            if key != lastKey || lastBuffer == nil {
-                guard let drawn = drawFrame(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: adaptor.pixelBufferPool) else { throw PricoReelError.message("pixel \(frame)") }
-                lastBuffer = drawn
-                lastKey = key
-                draws += 1
+            if cache[key] == nil {
+                guard let raster = renderRaster(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: adaptor.pixelBufferPool) else {
+                    throw PricoReelError.message("pixel \(frame)")
+                }
+                cache[key] = raster
             }
-            var spins = 0
-            while !input.isReadyForMoreMediaData && spins < 2500 {
-                Thread.sleep(forTimeInterval: 0.002)
-                spins += 1
+            guard let raster = cache[key], let buffer = pixelBuffer(copying: raster, width: width, height: height, pool: adaptor.pixelBufferPool) else {
+                throw PricoReelError.message("pixel \(frame)")
             }
-            if !input.isReadyForMoreMediaData { throw PricoReelError.message("video backpressure \(frame)/\(frames) draws \(draws)") }
-            guard let buffer = lastBuffer else { throw PricoReelError.message("pixel \(frame)") }
+            try waitUntilReady(input, until: started + budget, what: "video backpressure \(frame)/\(frames) draws \(cache.count)")
             if !adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))) {
                 throw writer.error ?? PricoReelError.message("append video \(frame)")
             }
             if frame == 0 || frame % 15 == 0 || frame + 1 == frames {
-                NSLog("PRICO export frame %d/%d draws %d ms %d", frame, frames, draws, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
+                NSLog("PRICO export frame %d/%d draws %d ms %d", frame, frames, cache.count, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
             }
         }
         input.markAsFinished()
-        NSLog("PRICO export video done frames %d draws %d ms %d", frames, draws, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
+        NSLog("PRICO export video done frames %d draws %d ms %d", frames, cache.count, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
+    }
+
+    private static func waitUntilReady(_ input: AVAssetWriterInput, until deadline: CFAbsoluteTime, what: String) throws {
+        while !input.isReadyForMoreMediaData {
+            if CFAbsoluteTimeGetCurrent() >= deadline { throw PricoReelError.message(what) }
+            Thread.sleep(forTimeInterval: 0.005)
+        }
+    }
+
+    private static func renderRaster(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, pool: CVPixelBufferPool?) -> Raster? {
+        guard let buffer = drawFrame(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: pool) else { return nil }
+        CVPixelBufferLockBaseAddress(buffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddress(buffer) else { return nil }
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+        let count = bytesPerRow * CVPixelBufferGetHeight(buffer)
+        return Raster(bytes: Data(bytes: base, count: count), bytesPerRow: bytesPerRow)
+    }
+
+    private static func pixelBuffer(copying raster: Raster, width: Int, height: Int, pool: CVPixelBufferPool?) -> CVPixelBuffer? {
+        var pb: CVPixelBuffer?
+        if let pool { CVPixelBufferPoolCreatePixelBuffer(nil, pool, &pb) }
+        if pb == nil {
+            let attrs = [kCVPixelBufferCGImageCompatibilityKey: true, kCVPixelBufferCGBitmapContextCompatibilityKey: true] as CFDictionary
+            CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, attrs, &pb)
+        }
+        guard let pb else { return nil }
+        CVPixelBufferLockBaseAddress(pb, [])
+        defer { CVPixelBufferUnlockBaseAddress(pb, []) }
+        guard let dst = CVPixelBufferGetBaseAddress(pb) else { return nil }
+        let dstStride = CVPixelBufferGetBytesPerRow(pb)
+        let rows = min(height, CVPixelBufferGetHeight(pb))
+        let copy = min(dstStride, raster.bytesPerRow)
+        raster.bytes.withUnsafeBytes { raw in
+            guard let src = raw.baseAddress else { return }
+            for row in 0..<rows {
+                memcpy(dst.advanced(by: row * dstStride), src.advanced(by: row * raster.bytesPerRow), copy)
+            }
+        }
+        return pb
     }
 
     private static func signature(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]]) -> String {
@@ -399,12 +436,7 @@ enum PricoReelExporter {
                     }
                 }
             }
-            var spins = 0
-            while !input.isReadyForMoreMediaData && spins < 2500 {
-                Thread.sleep(forTimeInterval: 0.002)
-                spins += 1
-            }
-            if !input.isReadyForMoreMediaData { throw PricoReelError.message("audio backpressure") }
+            try waitUntilReady(input, until: started + budget, what: "audio backpressure")
             if let sample = pcmSample(chunk, frames: n, sampleRate: pcm.rate, channels: pcm.channels, frameOffset: produced) {
                 if !input.append(sample) { throw writer.error ?? PricoReelError.message("append audio") }
             }

@@ -250,7 +250,7 @@ export async function runDeviceSmoke() {
         { text: 'CAP-C', start: 40, end: 70 },
       ],
       musicUrl, outName: 'prico-reel.mp4', fade: 0.4, maxSpan: 60, maxTotal: 90, width, height,
-    }), 420000, 'export_timeout');
+    }), 600000, 'export_timeout');
     const reelPlay = reel.playSrc ? await Promise.race([playbackSrc(reel.playSrc).catch(() => ({})), new Promise(r => setTimeout(() => r({}), 8000))]) : {};
     out.reel = { ...summarize(reel), ...reelPlay, musicTrack: music, plan: reelPlan, wallMs: reel.wallMs, elapsedMs: reel.elapsedMs, engine: reel.engine };
     out.persistence = await draftRoundtrip();

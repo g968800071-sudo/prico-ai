@@ -50,12 +50,12 @@ enum PricoReelExporter {
             if clips[i].kind == "video" {
                 let (images, dur) = try readVideo(url, context: ci)
                 if images.isEmpty { throw PricoReelError.message("no video frames") }
-                clips[i].video = images
+                clips[i].video = images.map { scaled($0, width: width, height: height) }
                 clips[i].videoDur = dur
                 NSLog("PRICO export decoded video frames %d dur %.2f", images.count, dur)
             } else {
                 guard let image = stillImage(url) else { throw PricoReelError.message("still \(clips[i].file)") }
-                clips[i].still = image
+                clips[i].still = scaled(image, width: width, height: height)
             }
         }
         let out = cache.appendingPathComponent("out.mp4")
@@ -95,7 +95,7 @@ enum PricoReelExporter {
         guard writer.startWriting() else { throw writer.error ?? PricoReelError.message("writer") }
         writer.startSession(atSourceTime: .zero)
         let frames = max(1, Int((total * Double(fps)).rounded()))
-        let budget = min(380.0, max(90.0, Double(frames) * 0.25))
+        let budget = min(400.0, max(160.0, Double(frames) * 0.2))
         try appendVideo(frames: frames, fps: fps, total: total, fade: fade, clips: clips, texts: texts, captions: captions, width: width, height: height, input: videoIn, adaptor: adaptor, writer: writer, budget: budget)
         try appendAudio(pcm, seconds: total, input: audioIn, writer: writer, budget: 60)
         let done = DispatchSemaphore(value: 0)
@@ -225,40 +225,63 @@ enum PricoReelExporter {
     }
 
     private static func appendVideo(frames: Int, fps: Int, total: Double, fade: Double, clips: [Clip], texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, input: AVAssetWriterInput, adaptor: AVAssetWriterInputPixelBufferAdaptor, writer: AVAssetWriter, budget: Double) throws {
-        let queue = DispatchQueue(label: "studio.pricop.export.video")
-        let sem = DispatchSemaphore(value: 0)
-        var writeError: String?
-        var index = 0
-        input.requestMediaDataWhenReady(on: queue) {
-            while input.isReadyForMoreMediaData {
-                if index >= frames {
-                    input.markAsFinished()
-                    sem.signal()
-                    return
-                }
-                let frame = index
-                autoreleasepool {
-                    let time = min(total - 0.0001, Double(frame) / Double(fps))
-                    if let buffer = drawFrame(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: adaptor.pixelBufferPool) {
-                        if !adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))) {
-                            writeError = writer.error?.localizedDescription ?? "append video \(frame)"
-                            input.markAsFinished()
-                        }
-                    } else {
-                        writeError = "pixel \(frame)"
-                        input.markAsFinished()
-                    }
-                }
-                if writeError != nil {
-                    sem.signal()
-                    return
-                }
-                index += 1
-                if frame == 0 || frame % 150 == 0 { NSLog("PRICO export frame %d/%d", frame, frames) }
+        let started = CFAbsoluteTimeGetCurrent()
+        var lastKey = ""
+        var lastBuffer: CVPixelBuffer?
+        var draws = 0
+        for frame in 0..<frames {
+            if CFAbsoluteTimeGetCurrent() - started > budget { throw PricoReelError.message("video encode timeout \(frame)/\(frames) draws \(draws)") }
+            let time = min(total - 0.0001, Double(frame) / Double(fps))
+            let key = signature(clips: clips, time: time, fade: fade, texts: texts, captions: captions)
+            if key != lastKey || lastBuffer == nil {
+                guard let drawn = drawFrame(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: adaptor.pixelBufferPool) else { throw PricoReelError.message("pixel \(frame)") }
+                lastBuffer = drawn
+                lastKey = key
+                draws += 1
+            }
+            var spins = 0
+            while !input.isReadyForMoreMediaData && spins < 2500 {
+                Thread.sleep(forTimeInterval: 0.002)
+                spins += 1
+            }
+            if !input.isReadyForMoreMediaData { throw PricoReelError.message("video backpressure \(frame)/\(frames) draws \(draws)") }
+            guard let buffer = lastBuffer else { throw PricoReelError.message("pixel \(frame)") }
+            if !adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))) {
+                throw writer.error ?? PricoReelError.message("append video \(frame)")
+            }
+            if frame == 0 || frame % 300 == 0 {
+                NSLog("PRICO export frame %d/%d draws %d ms %d", frame, frames, draws, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
             }
         }
-        if sem.wait(timeout: .now() + budget) == .timedOut { throw PricoReelError.message("video encode timeout \(index)/\(frames)") }
-        if let writeError { throw PricoReelError.message(writeError) }
+        input.markAsFinished()
+        NSLog("PRICO export video done frames %d draws %d ms %d", frames, draws, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
+    }
+
+    private static func signature(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]]) -> String {
+        let picture = layers(clips, time, fade).map { clip, alpha -> String in
+            let idx = clips.firstIndex { $0.file == clip.file && $0.start == clip.start } ?? 0
+            let frame: Int
+            if clip.kind == "video", !clip.video.isEmpty {
+                let local = time - clip.start
+                let wrapped = local.truncatingRemainder(dividingBy: clip.videoDur)
+                let pos = wrapped < 0 ? wrapped + clip.videoDur : wrapped
+                frame = min(clip.video.count - 1, max(0, Int(pos / clip.videoDur * Double(clip.video.count))))
+            } else { frame = -1 }
+            return "\(idx)#\(frame)@\(Int((alpha * 20).rounded()))"
+        }.joined(separator: ",")
+        let title = texts.compactMap { item -> String? in
+            let start = item["start"] as? Double ?? 0
+            let end = item["end"] as? Double ?? 1e9
+            guard time >= start && time <= end, let text = item["text"] as? String, !text.isEmpty else { return nil }
+            return text
+        }.joined(separator: "|")
+        let cap = captions.compactMap { item -> String? in
+            let start = item["start"] as? Double ?? 0
+            let end = item["end"] as? Double ?? 1e9
+            guard time >= start && time <= end, let text = item["text"] as? String, !text.isEmpty else { return nil }
+            return text
+        }.joined(separator: "|")
+        return picture + ">" + title + ">" + cap
     }
 
     private static func drawFrame(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, pool: CVPixelBufferPool?) -> CVPixelBuffer? {
@@ -276,13 +299,13 @@ enum PricoReelExporter {
         ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
         ctx.translateBy(x: 0, y: CGFloat(height))
         ctx.scaleBy(x: 1, y: -1)
+        ctx.interpolationQuality = .low
         for (clip, alpha) in layers(clips, time, fade) {
             let image = clip.kind == "video" ? frameImage(clip, time: time) : clip.still
             guard let image else { continue }
             ctx.saveGState()
             ctx.setAlpha(alpha)
-            ctx.interpolationQuality = .medium
-            ctx.draw(image, in: cover(image, width, height))
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
             ctx.restoreGState()
         }
         for item in texts {
@@ -319,6 +342,18 @@ enum PricoReelExporter {
         return [(hits[0], CGFloat(1 - u)), (hits[1], CGFloat(u))]
     }
 
+    private static func scaled(_ image: CGImage, width: Int, height: Int) -> CGImage {
+        let rect = cover(image, width, height)
+        guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue) else { return image }
+        ctx.translateBy(x: 0, y: CGFloat(height))
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.setFillColor(CGColor(srgbRed: 0.03, green: 0.03, blue: 0.05, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        ctx.interpolationQuality = .medium
+        ctx.draw(image, in: rect)
+        return ctx.makeImage() ?? image
+    }
+
     private static func cover(_ image: CGImage, _ width: Int, _ height: Int) -> CGRect {
         let sw = CGFloat(image.width), sh = CGFloat(image.height)
         let W = CGFloat(width), H = CGFloat(height)
@@ -348,42 +383,34 @@ enum PricoReelExporter {
         let total = max(1, Int(seconds * Double(pcm.rate)))
         let sourceFrames = pcm.data.count / bpf
         if sourceFrames < 1 { throw PricoReelError.message("music") }
-        let queue = DispatchQueue(label: "studio.pricop.export.audio")
-        let sem = DispatchSemaphore(value: 0)
-        var writeError: String?
+        let started = CFAbsoluteTimeGetCurrent()
         var produced = 0
-        input.requestMediaDataWhenReady(on: queue) {
-            while input.isReadyForMoreMediaData {
-                if produced >= total {
-                    input.markAsFinished()
-                    sem.signal()
-                    return
-                }
-                let n = min(1024, total - produced)
-                var chunk = Data(count: n * bpf)
-                chunk.withUnsafeMutableBytes { raw in
-                    guard let dst = raw.baseAddress else { return }
-                    pcm.data.withUnsafeBytes { srcRaw in
-                        guard let src = srcRaw.baseAddress else { return }
-                        for i in 0..<n {
-                            let from = ((produced + i) % sourceFrames) * bpf
-                            memcpy(dst.advanced(by: i * bpf), src.advanced(by: from), bpf)
-                        }
+        while produced < total {
+            if CFAbsoluteTimeGetCurrent() - started > budget { throw PricoReelError.message("audio encode timeout") }
+            let n = min(4096, total - produced)
+            var chunk = Data(count: n * bpf)
+            chunk.withUnsafeMutableBytes { raw in
+                guard let dst = raw.baseAddress else { return }
+                pcm.data.withUnsafeBytes { srcRaw in
+                    guard let src = srcRaw.baseAddress else { return }
+                    for i in 0..<n {
+                        let from = ((produced + i) % sourceFrames) * bpf
+                        memcpy(dst.advanced(by: i * bpf), src.advanced(by: from), bpf)
                     }
                 }
-                if let sample = pcmSample(chunk, frames: n, sampleRate: pcm.rate, channels: pcm.channels, frameOffset: produced) {
-                    if !input.append(sample) {
-                        writeError = writer.error?.localizedDescription ?? "append audio"
-                        input.markAsFinished()
-                        sem.signal()
-                        return
-                    }
-                }
-                produced += n
             }
+            var spins = 0
+            while !input.isReadyForMoreMediaData && spins < 2500 {
+                Thread.sleep(forTimeInterval: 0.002)
+                spins += 1
+            }
+            if !input.isReadyForMoreMediaData { throw PricoReelError.message("audio backpressure") }
+            if let sample = pcmSample(chunk, frames: n, sampleRate: pcm.rate, channels: pcm.channels, frameOffset: produced) {
+                if !input.append(sample) { throw writer.error ?? PricoReelError.message("append audio") }
+            }
+            produced += n
         }
-        if sem.wait(timeout: .now() + budget) == .timedOut { throw PricoReelError.message("audio encode timeout") }
-        if let writeError { throw PricoReelError.message(writeError) }
+        input.markAsFinished()
     }
 
     private static func pcmSample(_ data: Data, frames: Int, sampleRate: Int, channels: Int, frameOffset: Int) -> CMSampleBuffer? {

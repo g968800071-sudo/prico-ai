@@ -7,7 +7,13 @@ import ImageIO
 
 enum PricoReelError: Error, LocalizedError {
     case message(String)
-    var errorDescription: String? { switch self { case .message(let s): return s } }
+    case restart(Double)
+    var errorDescription: String? {
+        switch self {
+        case .message(let s): return s
+        case .restart(let t): return "restart \(t)"
+        }
+    }
 }
 
 enum PricoReelExporter {
@@ -68,20 +74,37 @@ enum PricoReelExporter {
         var parts: [URL] = []
         var origin = 0.0
         var index = 0
+        var shortenTo: Double?
+        var restarts = 0
         while origin < total - 0.0005 {
             let remaining = total - origin
-            let span = min(4.0, remaining)
+            var span = min(4.0, remaining)
+            if let cut = shortenTo, cut > origin + (1.0 / Double(fps)) {
+                span = min(span, cut - origin)
+                shortenTo = nil
+            }
             let segFrames = max(1, Int((span * Double(fps)).rounded()))
             let seg = cache.appendingPathComponent(String(format: "seg-%02d.mp4", index))
             if FileManager.default.fileExists(atPath: seg.path) { try FileManager.default.removeItem(at: seg) }
             NSLog("PRICO export segment %d origin %.3f frames %d", index, origin, segFrames)
-            try autoreleasepool {
-                try writeSegment(url: seg, pcm: pcm, origin: origin, span: Double(segFrames) / Double(fps), frames: segFrames, fps: fps, fade: fade, clips: clips, texts: texts, captions: captions, width: width, height: height)
+            do {
+                try autoreleasepool {
+                    try writeSegment(url: seg, pcm: pcm, origin: origin, span: Double(segFrames) / Double(fps), frames: segFrames, fps: fps, fade: fade, clips: clips, texts: texts, captions: captions, width: width, height: height)
+                }
+                NSLog("PRICO export segment %d released", index)
+                parts.append(seg)
+                origin += Double(segFrames) / Double(fps)
+                index += 1
+                restarts = 0
+            } catch PricoReelError.restart(let stuck) {
+                restarts += 1
+                let retryAt = stuck - (1.0 / Double(fps))
+                NSLog("PRICO export restart %d stuck %.3f retry %.3f", restarts, stuck, retryAt)
+                if restarts > 3 || retryAt <= origin + (1.0 / Double(fps)) {
+                    throw PricoReelError.message("video backpressure at \(String(format: "%.3f", stuck)) after \(restarts) restarts")
+                }
+                shortenTo = retryAt
             }
-            NSLog("PRICO export segment %d released", index)
-            parts.append(seg)
-            origin += Double(segFrames) / Double(fps)
-            index += 1
         }
         if parts.count == 1 {
             try FileManager.default.moveItem(at: parts[0], to: out)
@@ -297,6 +320,9 @@ enum PricoReelExporter {
                     let active = layers(clips, time, fade)
                     let desc = active.enumerated().map { "\($0.offset):\($0.element.0.kind)@\(String(format: "%.2f", $0.element.1))" }.joined(separator: ",")
                     NSLog("PRICO export stuck t=%.3f frame %d layers %d %@", time, frame, active.count, desc)
+                }
+                if CFAbsoluteTimeGetCurrent() - waitStart > 8 {
+                    throw PricoReelError.restart(time)
                 }
                 if CFAbsoluteTimeGetCurrent() > deadline {
                     throw PricoReelError.message("video backpressure \(frame)/\(frames) origin \(origin) audio \(audioProduced) status \(writer.status.rawValue) t \(String(format: "%.3f", time))")

@@ -1,7 +1,7 @@
 // PRICO LIVE: go live from the camera (with face effects), WebRTC to viewers (JPEG relay fallback when P2P fails),
 // live chat, hearts, gifts bought with coins, gift banners, per-live + global leaderboards, end-of-live stats.
 import { t } from './i18n.js';
-import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, confetti, $, $$ } from './core.js';
+import { S, I, api, h, esc, abs, fmt, toast, fail, sheet, haptic, confetti, $, $$, paymentsGate } from './core.js';
 import { needAuth, refreshMe } from './app.js';
 import * as rt from './rt.js';
 
@@ -11,7 +11,7 @@ let root = null, listT = 0;
 
 export function mountLive(el) {
   root = el;
-  el.innerHTML = `<div class="pad"><div class="hdr"><h1>🔴 ${esc(t('live'))}</h1><span class="sp"></span><button class="btn pri sm go">${esc(t('goLive'))}</button></div><div class="liveGrid"></div><div class="lbl">🏆 ${esc(t('topGifters'))}</div><div class="gtop"></div></div>`;
+  el.innerHTML = `<div class="pad"><div class="hdr"><h1>🔴 ${esc(t('live'))}</h1><span class="sp"></span><button class="btn pri sm go">${esc(t('goLive'))}</button></div><div class="mut xs scopeNote">${esc(t('liveScope'))}</div><div class="liveGrid"></div><div class="lbl">🏆 ${esc(t('topGifters'))}</div><div class="gtop"></div></div>`;
   $('.go', el).onclick = () => goLive();
   drawList(); clearInterval(listT); listT = setInterval(() => { if (S.route === 'live') drawList(); }, 10000);
 }
@@ -52,6 +52,43 @@ function overlay(L, host) {
   $('.lvBar', el).onsubmit = async e => { e.preventDefault(); const i = $('.ci', el); const text = i.value.trim(); if (!text) return; if (!S.me) { await needAuth(); } i.value = ''; rt.send({ t: 'live:chat', text }); };
   return { el, addChat, heart, gift, st, msg, stage: $('.lvStage', el) };
 }
+function startRelayAudio(stream) {
+  const tracks = stream.getAudioTracks();
+  if (!tracks.length) return null;
+  const actx = new AudioContext({ sampleRate: 16000 });
+  const src = actx.createMediaStreamSource(new MediaStream(tracks));
+  const proc = actx.createScriptProcessor(1024, 1, 1);
+  let seq = 0;
+  proc.onaudioprocess = e => {
+    const f = e.inputBuffer.getChannelData(0);
+    const pcm = new Int16Array(f.length);
+    for (let i = 0; i < f.length; i++) { const s = Math.max(-1, Math.min(1, f[i] || 0)); pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff; }
+    const u8 = new Uint8Array(pcm.buffer);
+    let bin = '';
+    for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    rt.send({ t: 'live:audio', d: btoa(bin), seq: seq++ });
+  };
+  const mute = actx.createGain();
+  mute.gain.value = 0;
+  src.connect(proc); proc.connect(mute); mute.connect(actx.destination);
+  return () => { try { proc.disconnect(); src.disconnect(); actx.close(); } catch {} };
+}
+let relayCtx = null, relayNext = 0;
+function playRelayPcm(b64) {
+  try {
+    if (!relayCtx) relayCtx = new AudioContext({ sampleRate: 16000 });
+    const bin = atob(b64);
+    const pcm = new Int16Array(bin.length >> 1);
+    for (let i = 0; i < pcm.length; i++) pcm[i] = (bin.charCodeAt(i * 2) | (bin.charCodeAt(i * 2 + 1) << 8)) << 16 >> 16;
+    const buf = relayCtx.createBuffer(1, pcm.length, 16000);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+    const src = relayCtx.createBufferSource();
+    src.buffer = buf; src.connect(relayCtx.destination);
+    const t0 = Math.max(relayCtx.currentTime + 0.05, relayNext);
+    src.start(t0); relayNext = t0 + buf.duration;
+  } catch {}
+}
 function endScreen(stats, host) {
   const d = Math.round((stats?.duration || 0) / 1000);
   const body = h(`<div class="col" style="text-align:center;align-items:center"><div style="font-size:52px">${host ? '🎉' : '👋'}</div><h2 style="margin:0">${esc(t(host ? 'liveEndedHost' : 'liveEnded'))}</h2>
@@ -66,7 +103,7 @@ export async function goLive() {
   const fx = await import('./fx.js');
   let cam;
   const pre = h(`<div class="lv on prep"><div class="lvStage"><div class="camMsg">${esc(t('camStarting'))}</div></div><div class="lvTop"><span class="sp"></span><button class="iconBtn flipB">🔄</button><button class="iconBtn x">${I.close}</button></div>
-    <div class="prepBox"><input class="field ttl" maxlength="80" placeholder="${esc(t('liveTitlePh'))}"><div class="fxRow hscroll"></div><button class="btn pri wide start">🔴 ${esc(t('goLive'))}</button><div class="mut xs" style="text-align:center">${esc(t('liveRules'))}</div></div></div>`);
+    <div class="prepBox"><input class="field ttl" maxlength="80" placeholder="${esc(t('liveTitlePh'))}"><div class="fxRow hscroll"></div><button class="btn pri wide start">🔴 ${esc(t('goLive'))}</button><div class="mut xs" style="text-align:center">${esc(t('liveScope'))}</div><div class="mut xs" style="text-align:center">${esc(t('liveRules'))}</div></div></div>`);
   document.body.append(pre);
   let cancelled = false;
   $('.x', pre).onclick = () => { cancelled = true; cam && cam.stop(); pre.remove(); };
@@ -105,13 +142,17 @@ function hostRun(L, cam, fx, rail) {
   offs.push(rt.on('live:chat', ui.addChat));
   offs.push(rt.on('live:like', () => ui.heart()));
   offs.push(rt.on('live:gift', ui.gift));
+  let stopAudio = null;
   offs.push(rt.on('live:fb:on', () => { if (fb) return; fb = true; const c = document.createElement('canvas'); c.width = 270; c.height = 480; const x = c.getContext('2d');
-    fbT = setInterval(() => { x.drawImage(cam.canvas, 0, 0, 270, 480); rt.send({ t: 'live:frame', d: c.toDataURL('image/jpeg', 0.5) }); }, 500); }));
-  offs.push(rt.on('live:fb:off', () => { fb = false; clearInterval(fbT); }));
+    fbT = setInterval(() => { x.drawImage(cam.canvas, 0, 0, 270, 480); rt.send({ t: 'live:frame', d: c.toDataURL('image/jpeg', 0.5) }); }, 200);
+    stopAudio = startRelayAudio(stream);
+    if (!cam.audioTracks().length) ui.msg(t('micDenied'));
+  }));
+  offs.push(rt.on('live:fb:off', () => { fb = false; clearInterval(fbT); stopAudio?.(); stopAudio = null; }));
   offs.push(rt.on('live:end', m => finish(m.stats)));
   if (rt.ready()) hello(); else rt.connect();
   ui.addChat({ user: S.me, text: t('youAreLive'), host: true });
-  const finish = stats => { if (ended) return; ended = true; offs.forEach(f => f()); clearInterval(fbT); peers.forEach(p => p.close()); cam.stop(); ui.el.remove(); endScreen(stats, true); refreshMe().catch(() => {}); refreshLive(); };
+  const finish = stats => { if (ended) return; ended = true; offs.forEach(f => f()); clearInterval(fbT); stopAudio?.(); peers.forEach(p => p.close()); cam.stop(); ui.el.remove(); endScreen(stats, true); refreshMe().catch(() => {}); refreshLive(); };
   const end = async () => { try { await api(`/api/lives/${L.id}/end`, { method: 'POST' }); } catch {} setTimeout(() => finish(null), 1500); };
   $('.endB', ui.el).onclick = () => confirm(t('endLive') + '?') && end();
   $('.x', ui.el).onclick = () => confirm(t('endLive') + '?') && end();
@@ -145,6 +186,7 @@ export async function watchLive(lid) {
     } catch (e) { console.warn(e); }
   }));
   offs.push(rt.on('live:frame', m => { if (connected) return; img.src = m.d; img.style.display = ''; v.style.display = 'none'; ui.msg(''); }));
+  offs.push(rt.on('live:audio', m => { if (connected) return; playRelayPcm(m.d); }));
   offs.push(rt.on('live:state', ui.st));
   offs.push(rt.on('live:chat', ui.addChat));
   offs.push(rt.on('live:like', () => ui.heart()));
@@ -191,7 +233,7 @@ export async function coinShop(after) {
     const r = await api('/api/shop'); const packs = r.products.filter(p => p.kind === 'coins');
     const { lang } = await import('./i18n.js');
     const money = p => new Intl.NumberFormat(lang(), { style: 'currency', currency: p.currency }).format(p.price);
-    body.innerHTML = `<div class="coinGrid">${packs.map(p => `<button class="coinPack ${p.best ? 'best' : ''}" data-p="${p.id}">${p.best ? `<span class="badge hot">${esc(t('best'))}</span>` : ''}<b>🪙 ${fmt(p.coins)}</b><span class="price">${money(p)}</span></button>`).join('')}</div>${r.mode === 'demo' ? `<div class="mut xs" style="text-align:center;margin-top:14px">🧪 ${esc(t('demoPay'))}</div>` : ''}`;
-    $$('[data-p]', body).forEach(b => b.onclick = async () => { b.disabled = true; try { await api('/api/shop/buy', { body: { productId: b.dataset.p } }); confetti(); toast('🪙 ' + t('bought')); await refreshMe(); sh.close(); after && after(); } catch (e) { fail(e); b.disabled = false; } });
+    body.innerHTML = `<div class="payNote">${esc(t('paymentsPostponed'))}</div><div class="coinGrid">${packs.map(p => `<button class="coinPack ${p.best ? 'best' : ''}" data-p="${p.id}">${p.best ? `<span class="badge hot">${esc(t('best'))}</span>` : ''}<b>🪙 ${fmt(p.coins)}</b><span class="price">${money(p)}</span></button>`).join('')}</div><div class="mut xs" style="text-align:center;margin-top:14px">${esc(t('paymentsPostponedShort'))}</div>`;
+    $$('[data-p]', body).forEach(b => b.onclick = async () => { if (S.device) { toast(t('devicePayOff'), true); return; } b.disabled = true; try { await paymentsGate(); await api('/api/shop/buy', { body: { productId: b.dataset.p } }); toast(t('e_payments_postponed'), true); } catch (e) { toast(e.code === 'payments_postponed' ? t('e_payments_postponed') : e.code === 'server_unsafe_pay' ? t('serverUnsafePay') : (await import('./core.js')).errMsg(e), true); } finally { b.disabled = false; } });
   } catch (e) { fail(e); }
 }

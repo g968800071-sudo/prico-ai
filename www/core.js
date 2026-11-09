@@ -1,12 +1,45 @@
 // PRICO AI — shared core: state, API client, DOM helpers, icons, sheets, toasts, sharing.
 import { t, lang } from './i18n.js';
 import { I } from './icons.js';
+import { assessServer } from './capabilities.js';
+import { acceptServerUrl } from './device.js';
 export { I };
-export const S = { me: null, cat: null, tok: localStorage.getItem('prico.tok') || '', muted: true, route: 'home' };
+export const S = { me: null, cat: null, tok: localStorage.getItem('prico.tok') || '', muted: true, route: 'home', apiBase: '' };
 export const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-export const BASE = NATIVE ? 'https://prico-ai.onrender.com' : '';
-export const PUBLIC = NATIVE ? BASE : location.origin;
+// Native builds read www/server.json. An empty apiBase does not fall back to the public site.
+export let BASE = '';
+export const origin = () => NATIVE ? BASE : location.origin;
 export const abs = u => !u ? u : /^(https?:|data:|blob:)/.test(u) ? u : BASE + u;
+export async function loadServer() {
+  let fromFile = '';
+  if (NATIVE) {
+    try { fromFile = String((await (await fetch('server.json', { cache: 'no-store' })).json()).apiBase || ''); } catch { fromFile = ''; }
+  }
+  const saved = (() => { try { return localStorage.getItem('prico.server') || ''; } catch { return ''; } })();
+  const picked = acceptServerUrl(saved || fromFile);
+  BASE = picked.ok ? picked.url : '';
+  S.apiBase = BASE;
+  S.device = NATIVE && !BASE;
+  S.blockedHost = picked.reason === 'blocked_host';
+  return BASE;
+}
+export function useDeviceMode() {
+  BASE = '';
+  S.apiBase = '';
+  S.device = true;
+}
+export async function generationGate() {
+  const health = await api('/api/health');
+  const cap = assessServer(health);
+  if (!cap.generationSafe) throw Object.assign(new Error('server_unsafe_ai'), { code: 'server_unsafe_ai', health });
+  return health;
+}
+export async function paymentsGate() {
+  const health = await api('/api/health');
+  const cap = assessServer(health);
+  if (!cap.paymentsSafe) throw Object.assign(new Error('server_unsafe_pay'), { code: 'server_unsafe_pay', health });
+  return health;
+}
 export const $ = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

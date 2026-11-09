@@ -23,8 +23,8 @@ import * as editor from './editor.js';
 import * as tts from './tts.js';
 import * as rt from './rt.js';
 import * as studio from './studio.js';
-import { brandImage } from './render.js';
-const VERSION = '1.1.0';
+import { brandImage, brandVideo, overlayPng } from './render.js';
+const VERSION = '1.5.0';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WWW = path.join(ROOT, 'www');
@@ -46,7 +46,7 @@ function send(res, code, body, headers = {}) {
   res.writeHead(code, { 'Content-Type': isBuf ? 'application/octet-stream' : 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...headers });
   res.end(data);
 }
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS' };
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS', 'Access-Control-Allow-Private-Network': 'true' };
 
 async function readBody(req, max = 8 * 1024 * 1024) {
   const chunks = []; let n = 0;
@@ -94,7 +94,8 @@ const facesOf = u => (u.faces || []).map(f => db.faces[f]).filter(Boolean);
 const faceOut = f => ({ id: f.id, url: mediaUrl(f.cut || f.img), cut: !!f.cut });
 
 function tplOut(t, lang) {
-  return { id: t.id, kind: t.kind, group: t.group, emoji: t.emoji, faces: t.kind === 'video' ? (t.faces || 1) : 1, name: loc(t.name, lang), preview: `/api/preview/${t.id}.jpg?v=${PREVIEW_V}`, cost: t.kind === 'video' ? 1 : 0, hot: !!t.hot, isNew: !!t.isNew, music: t.music || null };
+  const faces = t.kind === 'video' ? (t.faces || 1) : 1;
+  return { id: t.id, kind: t.kind, group: t.group, emoji: t.emoji, faces, identity: faces > 1 ? 'unsupported' : 'single', name: loc(t.name, lang), preview: `/api/preview/${t.id}.jpg?v=${PREVIEW_V}`, cost: t.kind === 'video' ? 1 : 0, hot: !!t.hot, isNew: !!t.isNew, music: t.music || null };
 }
 function postOut(p, viewer) {
   const t = byId(p.tpl); const u = db.users[p.uid]; const lang = viewer?.lang || 'en';
@@ -118,7 +119,11 @@ const MAX_PAR = Number(process.env.JOB_CONCURRENCY || 1);
 function pump() {
   while (running < MAX_PAR && queue.length) {
     const j = queue.shift(); running++; j.status = 'running'; j.started = now();
-    runJob(j).catch(e => { console.error('[job]', j.id, e.message); j.status = 'error'; j.error = 'generation_failed'; refund(j); })
+    runJob(j).catch(e => {
+      const code = ['ai_unavailable', 'ai_exhausted', 'invalid_media', 'generation_failed'].includes(e.code) ? e.code : 'generation_failed';
+      console.error('[job]', j.id, code);
+      j.status = 'error'; j.error = code; refund(j);
+    })
       .finally(() => { running--; save(); pump(); });
   }
 }
@@ -128,15 +133,38 @@ async function runJob(j) {
   if (j.type === 'edit') return runEdit(j);
   const t = byId(j.tpl); const u = db.users[j.uid];
   const faces = [];
-  for (const fid of j.faces) { const f = db.faces[fid]; if (!f) continue; faces.push({ img: (await store.getBlob(f.img))?.data, cut: f.cut ? (await store.getBlob(f.cut))?.data : null }); }
-  if (!faces.length || !faces[0].img) throw new Error('no faces');
+  for (const fid of j.faces) { const f = db.faces[fid]; if (!f) continue; const img = (await store.getBlob(f.img))?.data; if (img) faces.push({ img }); }
+  if (!faces.length) throw Object.assign(new Error('invalid_media'), { code: 'invalid_media' });
   const prov = providers.current();
-  const w = wallet(u); const o = { lang: u.lang || 'en', prompt: j.prompt, overlay: j.overlay, noWm: !!w.noWm, hd: !!w.hd };
-  const r = t.kind === 'video' ? await prov.video(t, faces, o) : await prov.photo(t, faces, o);
-  const blob = await store.putBlob(r.data, r.mime);
-  const poster = r.poster ? await store.putBlob(r.poster, 'image/jpeg') : null;
+  if (!prov) throw Object.assign(new Error('ai_unavailable'), { code: 'ai_unavailable' });
+  const w = wallet(u);
+  const decorateStill = async buf => {
+    if (!j.overlay) return buf;
+    const sharp = (await import('sharp')).default;
+    const base = await sharp(buf).rotate().resize(768, 1365, { fit: 'cover' }).jpeg({ quality: 90 }).toBuffer();
+    const ov = await overlayPng(j.overlay, 768, 1365);
+    return ov ? sharp(base).composite([{ input: ov, left: 0, top: 0 }]).jpeg({ quality: 90 }).toBuffer() : base;
+  };
+  const o = { lang: u.lang || 'en', prompt: j.prompt, noWm: !!w.noWm, hd: !!w.hd, decorateStill: t.kind === 'video' ? decorateStill : undefined };
+  const raw = t.kind === 'video' ? await prov.video(t, faces, o) : await prov.photo(t, faces, o);
+  let data = raw.data, poster = null, mime = raw.mime;
+  if (t.kind === 'video') {
+    const branded = await brandVideo(raw.data, { noWm: !!o.noWm, hd: !!o.hd });
+    data = branded.mp4; poster = branded.poster; mime = 'video/mp4';
+  } else {
+    if (j.overlay) {
+      const sharp = (await import('sharp')).default;
+      const meta = await sharp(data).metadata();
+      const ov = await overlayPng(j.overlay, meta.width || 768, meta.height || 1365);
+      if (ov) data = await sharp(data).composite([{ input: ov, left: 0, top: 0 }]).jpeg({ quality: 90 }).toBuffer();
+    }
+    data = await brandImage(data, { noWm: !!o.noWm, hd: !!o.hd });
+    mime = 'image/jpeg';
+  }
+  const blob = await store.putBlob(data, mime);
+  const posterId = poster ? await store.putBlob(poster, 'image/jpeg') : null;
   const mid = id(10);
-  db.media[mid] = { id: mid, uid: u.id, type: t.kind, blob, poster, tpl: t.id, prompt: j.prompt || '', createdAt: now(), demo: prov.name === 'demo' };
+  db.media[mid] = { id: mid, uid: u.id, type: t.kind === 'video' ? 'video' : 'photo', blob, poster: posterId, tpl: t.id, prompt: j.prompt || '', createdAt: now(), demo: false, ai: true, model: t.kind === 'video' ? prov.videoModel() : prov.photoModel() };
   j.status = 'done'; j.media = mid; j.finished = now();
 }
 async function runReel(j) {
@@ -148,7 +176,7 @@ async function runReel(j) {
   const rw = wallet(u); const r = await reels.render({ items, faces, niche: j.niche, idea: j.prompt, musicId: j.musicId, lang: u.lang || 'en', overlay: j.overlay, subtitles: j.subtitles !== false, lines: j.lines, noWm: !!rw.noWm, hd: !!rw.hd });
   const blob = await store.putBlob(r.mp4, 'video/mp4'); const poster = await store.putBlob(r.poster, 'image/jpeg');
   const mid = id(10);
-  db.media[mid] = { id: mid, uid: u.id, type: 'video', reel: true, blob, poster, tpl: null, niche: j.niche, prompt: j.prompt || '', createdAt: now(), duration: r.duration, captions: r.captions };
+  db.media[mid] = { id: mid, uid: u.id, type: 'video', reel: true, local: true, ai: false, composite: !items.length, blob, poster, tpl: null, niche: j.niche, prompt: j.prompt || '', createdAt: now(), duration: r.duration, captions: r.captions };
   j.status = 'done'; j.media = mid; j.finished = now();
 }
 async function runEdit(j) {
@@ -156,17 +184,18 @@ async function runEdit(j) {
   const r = await editor.render(j.project, x => { j.prog = x; }, { noWm: !!wallet(u).noWm, hd: !!wallet(u).hd });
   const blob = await store.putBlob(r.mp4, 'video/mp4'); const poster = await store.putBlob(r.poster, 'image/jpeg');
   const mid = id(10);
-  db.media[mid] = { id: mid, uid: u.id, type: 'video', edit: true, cam: !!j.cam, blob, poster, tpl: null, prompt: '', createdAt: now(), duration: r.duration };
+  db.media[mid] = { id: mid, uid: u.id, type: 'video', edit: true, cam: !!j.cam, local: true, ai: false, blob, poster, tpl: null, prompt: '', createdAt: now(), duration: r.duration };
   j.status = 'done'; j.media = mid; j.finished = now();
 }
 function jobOut(j) {
   if (j.type === 'edit') { const ahead = j.status === 'queued' ? queue.indexOf(j) + running : 0; return { id: j.id, status: j.status, progress: j.status === 'done' ? 1 : j.status === 'running' ? Math.max(0.05, j.prog || 0.05) : 0, ahead, error: j.error, media: j.media ? mediaOut(db.media[j.media]) : null }; }
-  const eta = (j.type === 'reel' ? 10 + 4 * (j.uploads.length || 4) : (providers.current().etaSec[byId(j.tpl).kind] || 10)) * 1000;
+  const prov = providers.current();
+  const eta = (j.type === 'reel' ? 10 + 4 * (j.uploads.length || 4) : ((prov && prov.etaSec[byId(j.tpl)?.kind]) || 30)) * 1000;
   const ahead = j.status === 'queued' ? queue.indexOf(j) + running : 0;
   const prog = j.status === 'done' ? 1 : j.status === 'running' ? Math.min(0.95, (now() - j.started) / eta) : 0;
   return { id: j.id, status: j.status, progress: prog, ahead, error: j.error, media: j.media ? mediaOut(db.media[j.media]) : null };
 }
-const mediaOut = m => m && ({ id: m.id, type: m.type, url: mediaUrl(m.blob), poster: mediaUrl(m.poster || m.blob), tpl: m.tpl, createdAt: m.createdAt, posted: !!m.post, demo: !!m.demo, reel: !!m.reel, captions: m.captions || null, duration: m.duration || null });
+const mediaOut = m => m && ({ id: m.id, type: m.type, url: mediaUrl(m.blob), poster: mediaUrl(m.poster || m.blob), tpl: m.tpl, createdAt: m.createdAt, posted: !!m.post, demo: !!m.demo, ai: !!m.ai, local: !!m.local, composite: !!m.composite, model: m.model || null, reel: !!m.reel, captions: m.captions || null, duration: m.duration || null });
 
 // ---------- preview thumbnails (template cards) ----------
 const previewCache = new Map();
@@ -204,7 +233,7 @@ function feed(tab, viewer, cursor = 0, limit = 8) {
 const routes = [];
 const r = (method, pattern, fn) => routes.push({ method, re: new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn });
 
-r('GET', '/api/health', async () => ({ ok: true, version: VERSION, tts: tts.provider(), lives: hub?.lives.size || 0, provider: providers.current().name, store: store.backend(), payments: payments.mode(), users: Object.keys(db.users).length, posts: Object.keys(db.posts).length }));
+r('GET', '/api/health', async () => ({ ok: true, version: VERSION, tts: tts.provider(), lives: hub?.lives.size || 0, ai: providers.status(), store: store.backend(), payments: payments.mode(), capabilities: { contract: 2, generation: 'unavailable-or-real', payments: 'postponed' }, users: Object.keys(db.users).length, posts: Object.keys(db.posts).length }));
 
 r('POST', '/api/auth/register', async (req) => {
   const { email, password, name, lang } = await json(req);
@@ -271,8 +300,9 @@ r('DELETE', '/api/faces/:fid', async (req, p) => {
 r('GET', '/api/catalog', async (req) => {
   const u = authUser(req); const q = new URL(req.url, 'http://x').searchParams.get('lang'); const lang = LANGS.includes(q) ? q : (u?.lang || 'en');
   const ch = todayChallenge();
+  const ai = providers.status();
   return { groups: Object.fromEntries(Object.entries(catalog.GROUPS).map(([k, v]) => [k, loc(v, lang)])), templates: catalog.ALL.map(t => tplOut(t, lang)),
-    challenge: { day: ch.day, name: loc(ch.name, lang), tpl: ch.tpl }, provider: providers.current().name,
+    challenge: { day: ch.day, name: loc(ch.name, lang), tpl: ch.tpl }, provider: ai.available ? 'fal' : 'unavailable', ai,
     niches: Object.entries(NICHES).map(([k, v]) => ({ id: k, emoji: v.emoji, music: v.music })), music: music.list(), musicCats: music.CATS,
     stickers: STICKERS };
 });
@@ -288,9 +318,17 @@ r('POST', '/api/generate', async (req) => {
   if (!check(prompt).ok) bad('unsafe_prompt', 422);
   const overlay = cleanOverlay(b.overlay);
   const want = t.kind === 'video' ? (t.faces || 1) : 1;
-  const fids = (Array.isArray(b.faceIds) ? b.faceIds : []).filter(f => db.faces[f] && (db.faces[f].uid === u.id || (db.faces[f].shared))).slice(0, want);
+  if (want > 1) bad('multi_face_unsupported', 422, { faces: want });
+  const fids = (Array.isArray(b.faceIds) ? b.faceIds : []).filter(f => db.faces[f] && (db.faces[f].uid === u.id || (db.faces[f].shared))).slice(0, 1);
   if (!fids.length) bad('no_face');
-  while (fids.length < want) fids.push(fids[fids.length - 1]);
+  for (const fid of fids) {
+    const blob = await store.getBlob(db.faces[fid].img);
+    const { validateImage } = await import('./media-validate.js');
+    const v = await validateImage(blob?.data);
+    if (!v.ok) bad('invalid_media', 422);
+  }
+  const ai = providers.status();
+  if (!ai.available) bad('ai_unavailable', 503, { reason: ai.reason });
   if ([...jobs.values()].some(j => j.uid === u.id && (j.status === 'queued' || j.status === 'running'))) bad('busy', 429);
   const w = wallet(u); let charge;
   if (w.unlimited) charge = null;
@@ -374,11 +412,11 @@ r('POST', '/api/media/photo', async (req) => {
   const u = need(req); const buf = await readBody(req, 10e6);
   const img = await brandImage(buf, { noWm: !!wallet(u).noWm }).catch(() => bad('bad_image'));
   const blob = await store.putBlob(img, 'image/jpeg'); const mid = id(10);
-  db.media[mid] = { id: mid, uid: u.id, type: 'photo', cam: true, blob, poster: blob, tpl: null, prompt: '', createdAt: now() };
+  db.media[mid] = { id: mid, uid: u.id, type: 'photo', cam: true, local: true, ai: false, blob, poster: blob, tpl: null, prompt: '', createdAt: now() };
   save(); return { media: mediaOut(db.media[mid]) };
 });
 // Photo Studio: HD enhance, background swap ("you anywhere"), greeting cards. Free; owner unlimited; 30/day for others.
-r('GET', '/api/studio', async () => ({ enhance: studio.enhanceMode(), scenes: studio.BG_SCENES, cards: Object.keys(studio.CARDS) }));
+r('GET', '/api/studio', async () => ({ enhance: studio.enhanceMode(), upscale: false, scenes: studio.BG_SCENES, cards: Object.keys(studio.CARDS) }));
 const bgThumbs = new Map();
 r('GET', '/api/studio/bg/:scene', async (req, p, res) => {
   const sc = p.scene.replace(/\.jpg$/, ''); if (!studio.BG_SCENES.includes(sc) && !Object.values(studio.CARDS).includes(sc)) bad('not_found', 404);
@@ -404,7 +442,7 @@ r('POST', '/api/studio', async (req) => {
   finally { studioBusy--; }
   if (!isOwner(u)) u.studioN = (u.studioN || 0) + 1;
   const blob = await store.putBlob(out, 'image/jpeg'); const mid = id(10);
-  db.media[mid] = { id: mid, uid: u.id, type: 'photo', cam: true, studio: b.op, blob, poster: blob, tpl: null, prompt: '', createdAt: now() };
+  db.media[mid] = { id: mid, uid: u.id, type: 'photo', cam: true, studio: b.op, local: true, ai: false, composite: b.op === 'bg' || b.op === 'card', blob, poster: blob, tpl: null, prompt: '', createdAt: now() };
   save(); return { media: mediaOut(db.media[mid]) };
 });
 let studioBusy = 0;
@@ -586,5 +624,5 @@ let hub = null;
 await store.init();
 hub = rt.install({ r, need, authUser, bad, json, readBody, db, save, id, mediaUrl, server, store, check, isOwner });
 await seed();
-server.listen(PORT, () => console.log(`PRICO AI on :${PORT} provider=${providers.current().name} store=${store.backend()} payments=${payments.mode()}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`PRICO AI on :${PORT} ai=${providers.status().available ? 'fal' : providers.status().reason} store=${store.backend()} payments=${payments.mode()}`));
 for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, async () => { try { await store.flushNow(); } catch {} process.exit(0); });

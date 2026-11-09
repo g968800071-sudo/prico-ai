@@ -17,7 +17,8 @@ export const PRODUCTS = [
   { id: 'coins_1400', kind: 'coins', price: 19.99, currency: 'EUR', coins: 1400, best: true },
   { id: 'coins_3500', kind: 'coins', price: 49.99, currency: 'EUR', coins: 3500 },
 ];
-export const mode = () => (process.env.PAYMENTS_MODE === 'stripe' && process.env.STRIPE_SECRET_KEY ? 'stripe' : 'demo');
+// End-user payments are postponed. Prices stay visible. Nothing is charged and nothing is granted.
+export const mode = () => 'postponed';
 
 export function grant(u, p) {
   if (p.kind === 'sub' || p.kind === 'trial') {
@@ -37,10 +38,7 @@ export function grant(u, p) {
 export async function buy(u, productId) {
   const p = PRODUCTS.find(x => x.id === productId);
   if (!p) throw Object.assign(new Error('bad_product'), { code: 400 });
-  if (p.kind === 'trial') {
-    if (u.trialUsed || (u.plus && u.plus.until > Date.now())) throw Object.assign(new Error('trial_used'), { code: 409 });
-  }
-  if (mode() === 'demo') { grant(u, p); return { ok: true, demo: true, product: p }; }
-  // Stripe hook (not active until keys are configured): create a Checkout Session and return its URL.
-  throw Object.assign(new Error('payments_not_configured'), { code: 501 });
+  // Do not call grant(). A postponed purchase must not look successful.
+  void u;
+  throw Object.assign(new Error('payments_postponed'), { code: 503 });
 }

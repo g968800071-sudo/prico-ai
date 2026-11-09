@@ -225,70 +225,127 @@ enum PricoReelExporter {
 
     private struct Raster { let bytes: Data; let bytesPerRow: Int }
 
+    private final class InterleaveBox {
+        var frame = 0
+        var audioProduced = 0
+        var draws = 0
+        var done = false
+        var pumping = false
+        var again = false
+        var error: String?
+        var cache: [String: Raster] = [:]
+        let sem = DispatchSemaphore(value: 0)
+        func finish(_ message: String? = nil) {
+            if done { return }
+            done = true
+            error = message
+            sem.signal()
+        }
+    }
+
     private static func appendInterleaved(pcm: PCM, frames: Int, fps: Int, total: Double, fade: Double, clips: [Clip], texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, videoIn: AVAssetWriterInput, audioIn: AVAssetWriterInput, adaptor: AVAssetWriterInputPixelBufferAdaptor, writer: AVAssetWriter, budget: Double) throws {
         let started = CFAbsoluteTimeGetCurrent()
-        let deadline = started + budget
+        let box = InterleaveBox()
+        let media = DispatchQueue(label: "studio.pricop.export.media")
         let bpf = pcm.channels * 2
         let sourceFrames = pcm.data.count / bpf
         if sourceFrames < 1 { throw PricoReelError.message("music") }
         let audioTotal = max(1, Int(total * Double(pcm.rate)))
-        var audioProduced = 0
-        var cache: [String: Raster] = [:]
-        func pushAudio(until goal: Int, wait: Bool) throws {
-            let target = min(audioTotal, max(audioProduced, goal))
-            while audioProduced < target {
-                if writer.status == .failed { throw writer.error ?? PricoReelError.message("writer failed during audio") }
-                if CFAbsoluteTimeGetCurrent() > deadline { throw PricoReelError.message("audio encode timeout \(audioProduced)/\(audioTotal)") }
-                if !audioIn.isReadyForMoreMediaData {
-                    if !wait { return }
-                    try waitUntilReady(audioIn, writer: writer, until: deadline, what: "audio backpressure \(audioProduced) videoFinished \(videoIn.isReadyForMoreMediaData)")
-                }
-                let n = min(1024, target - audioProduced)
+        func fail(_ message: String) {
+            if box.done { return }
+            box.done = true
+            box.error = message
+            if writer.status == .writing {
+                videoIn.markAsFinished()
+                audioIn.markAsFinished()
+            }
+            box.sem.signal()
+        }
+        func pushAudio(limit: Int) {
+            while box.audioProduced < limit && audioIn.isReadyForMoreMediaData {
+                let n = min(1024, limit - box.audioProduced)
                 var chunk = Data(count: n * bpf)
                 chunk.withUnsafeMutableBytes { raw in
                     guard let dst = raw.baseAddress else { return }
                     pcm.data.withUnsafeBytes { srcRaw in
                         guard let src = srcRaw.baseAddress else { return }
                         for i in 0..<n {
-                            memcpy(dst.advanced(by: i * bpf), src.advanced(by: ((audioProduced + i) % sourceFrames) * bpf), bpf)
+                            memcpy(dst.advanced(by: i * bpf), src.advanced(by: ((box.audioProduced + i) % sourceFrames) * bpf), bpf)
                         }
                     }
                 }
-                guard let sample = pcmSample(chunk, frames: n, sampleRate: pcm.rate, channels: pcm.channels, frameOffset: audioProduced) else {
-                    throw PricoReelError.message("audio sample")
+                guard let sample = pcmSample(chunk, frames: n, sampleRate: pcm.rate, channels: pcm.channels, frameOffset: box.audioProduced), audioIn.append(sample) else {
+                    fail(writer.error?.localizedDescription ?? "append audio")
+                    return
                 }
-                if !audioIn.append(sample) { throw writer.error ?? PricoReelError.message("append audio") }
-                audioProduced += n
+                box.audioProduced += n
+            }
+        }
+        func pump() {
+            if box.pumping { box.again = true; return }
+            box.pumping = true
+            defer { box.pumping = false }
+            if CFAbsoluteTimeGetCurrent() - started > budget {
+                fail("export timeout \(box.frame)/\(frames) draws \(box.draws) audio \(box.audioProduced) status \(writer.status.rawValue)")
+                return
+            }
+            if writer.status == .failed {
+                fail(writer.error?.localizedDescription ?? "writer failed")
+                return
+            }
+            while !box.done && box.frame < frames {
+                let videoSamples = Int((Double(box.frame + 1) / Double(fps)) * Double(pcm.rate))
+                if box.audioProduced < videoSamples {
+                    if !audioIn.isReadyForMoreMediaData { break }
+                    pushAudio(limit: videoSamples)
+                    if box.done { return }
+                    if box.audioProduced < videoSamples { break }
+                }
+                if !videoIn.isReadyForMoreMediaData { break }
+                let frame = box.frame
+                let time = min(total - 0.0001, Double(frame) / Double(fps))
+                let key = signature(clips: clips, time: time, fade: fade, texts: texts, captions: captions)
+                if box.cache[key] == nil {
+                    guard let raster = renderRaster(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: adaptor.pixelBufferPool) else {
+                        fail("pixel \(frame)")
+                        return
+                    }
+                    box.cache[key] = raster
+                    box.draws = box.cache.count
+                }
+                guard let raster = box.cache[key], let buffer = pixelBuffer(copying: raster, width: width, height: height, pool: adaptor.pixelBufferPool) else {
+                    fail("pixel \(frame)")
+                    return
+                }
+                if !adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))) {
+                    fail(writer.error?.localizedDescription ?? "append video \(frame)")
+                    return
+                }
+                box.frame = frame + 1
+                if frame == 0 || frame % 15 == 0 {
+                    NSLog("PRICO export frame %d/%d draws %d audio %d ms %d", frame, frames, box.cache.count, box.audioProduced, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
+                }
+            }
+            if box.done { return }
+            if box.frame >= frames {
+                pushAudio(limit: audioTotal)
+                if box.done { return }
+                if box.audioProduced >= audioTotal {
+                    videoIn.markAsFinished()
+                    audioIn.markAsFinished()
+                    NSLog("PRICO export interleaved frames %d draws %d audio %d ms %d", frames, box.cache.count, box.audioProduced, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
+                    box.finish()
+                }
             }
         }
         NSLog("PRICO export interleave frames %d audio %d", frames, audioTotal)
-        for frame in 0..<frames {
-            if CFAbsoluteTimeGetCurrent() > deadline { throw PricoReelError.message("video encode timeout \(frame)/\(frames) draws \(cache.count) audio \(audioProduced)") }
-            let videoEnd = Double(frame + 1) / Double(fps)
-            try pushAudio(until: Int(videoEnd * Double(pcm.rate)), wait: false)
-            try waitUntilReady(videoIn, writer: writer, until: deadline, what: "video backpressure \(frame)/\(frames) draws \(cache.count) audio \(audioProduced) status \(writer.status.rawValue) \(writer.error?.localizedDescription ?? "")")
-            let time = min(total - 0.0001, Double(frame) / Double(fps))
-            let key = signature(clips: clips, time: time, fade: fade, texts: texts, captions: captions)
-            if cache[key] == nil {
-                guard let raster = renderRaster(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: adaptor.pixelBufferPool) else {
-                    throw PricoReelError.message("pixel \(frame)")
-                }
-                cache[key] = raster
-            }
-            guard let raster = cache[key], let buffer = pixelBuffer(copying: raster, width: width, height: height, pool: adaptor.pixelBufferPool) else {
-                throw PricoReelError.message("pixel \(frame)")
-            }
-            if !adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))) {
-                throw writer.error ?? PricoReelError.message("append video \(frame)")
-            }
-            if frame == 0 || frame % 15 == 0 || frame + 1 == frames {
-                NSLog("PRICO export frame %d/%d draws %d audio %d ms %d", frame, frames, cache.count, audioProduced, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
-            }
+        videoIn.requestMediaDataWhenReady(on: media) { pump() }
+        audioIn.requestMediaDataWhenReady(on: media) { pump() }
+        if box.sem.wait(timeout: .now() + budget) == .timedOut {
+            let snapshot = media.sync { (box.frame, box.draws, box.audioProduced, writer.status.rawValue, writer.error?.localizedDescription ?? "") }
+            throw PricoReelError.message("export timeout \(snapshot.0)/\(frames) draws \(snapshot.1) audio \(snapshot.2) status \(snapshot.3) \(snapshot.4)")
         }
-        videoIn.markAsFinished()
-        try pushAudio(until: audioTotal, wait: true)
-        audioIn.markAsFinished()
-        NSLog("PRICO export interleaved frames %d draws %d audio %d ms %d", frames, cache.count, audioProduced, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
+        if let error = box.error { throw PricoReelError.message(error) }
     }
 
     private static func waitUntilReady(_ input: AVAssetWriterInput, writer: AVAssetWriter, until deadline: CFAbsoluteTime, what: String) throws {

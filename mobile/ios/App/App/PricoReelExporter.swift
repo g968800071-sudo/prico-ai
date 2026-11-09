@@ -234,12 +234,16 @@ enum PricoReelExporter {
         let audioTotal = max(1, Int(total * Double(pcm.rate)))
         var audioProduced = 0
         var cache: [String: Raster] = [:]
-        func pushAudio(until goal: Int) throws {
+        func pushAudio(until goal: Int, wait: Bool) throws {
             let target = min(audioTotal, max(audioProduced, goal))
             while audioProduced < target {
                 if writer.status == .failed { throw writer.error ?? PricoReelError.message("writer failed during audio") }
                 if CFAbsoluteTimeGetCurrent() > deadline { throw PricoReelError.message("audio encode timeout \(audioProduced)/\(audioTotal)") }
-                let n = min(4096, target - audioProduced)
+                if !audioIn.isReadyForMoreMediaData {
+                    if !wait { return }
+                    try waitUntilReady(audioIn, writer: writer, until: deadline, what: "audio backpressure \(audioProduced) videoFinished \(videoIn.isReadyForMoreMediaData)")
+                }
+                let n = min(1024, target - audioProduced)
                 var chunk = Data(count: n * bpf)
                 chunk.withUnsafeMutableBytes { raw in
                     guard let dst = raw.baseAddress else { return }
@@ -250,7 +254,6 @@ enum PricoReelExporter {
                         }
                     }
                 }
-                try waitUntilReady(audioIn, writer: writer, until: deadline, what: "audio backpressure \(audioProduced)")
                 guard let sample = pcmSample(chunk, frames: n, sampleRate: pcm.rate, channels: pcm.channels, frameOffset: audioProduced) else {
                     throw PricoReelError.message("audio sample")
                 }
@@ -262,10 +265,7 @@ enum PricoReelExporter {
         for frame in 0..<frames {
             if CFAbsoluteTimeGetCurrent() > deadline { throw PricoReelError.message("video encode timeout \(frame)/\(frames) draws \(cache.count) audio \(audioProduced)") }
             let videoEnd = Double(frame + 1) / Double(fps)
-            try pushAudio(until: Int(videoEnd * Double(pcm.rate)))
-            if !videoIn.isReadyForMoreMediaData {
-                try pushAudio(until: min(audioTotal, audioProduced + pcm.rate / 2))
-            }
+            try pushAudio(until: Int(videoEnd * Double(pcm.rate)), wait: false)
             try waitUntilReady(videoIn, writer: writer, until: deadline, what: "video backpressure \(frame)/\(frames) draws \(cache.count) audio \(audioProduced) status \(writer.status.rawValue) \(writer.error?.localizedDescription ?? "")")
             let time = min(total - 0.0001, Double(frame) / Double(fps))
             let key = signature(clips: clips, time: time, fade: fade, texts: texts, captions: captions)
@@ -285,8 +285,8 @@ enum PricoReelExporter {
                 NSLog("PRICO export frame %d/%d draws %d audio %d ms %d", frame, frames, cache.count, audioProduced, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
             }
         }
-        try pushAudio(until: audioTotal)
         videoIn.markAsFinished()
+        try pushAudio(until: audioTotal, wait: true)
         audioIn.markAsFinished()
         NSLog("PRICO export interleaved frames %d draws %d audio %d ms %d", frames, cache.count, audioProduced, Int((CFAbsoluteTimeGetCurrent() - started) * 1000))
     }

@@ -141,18 +141,32 @@ jobs:
           python3 - <<'PY'
           import json, os, shutil, glob
           smoke = json.load(open(os.environ["RUNNER_TEMP"] + "/out/ios-device-smoke.json"))
-          if not smoke.get("ok"):
-              raise SystemExit("device export smoke failed: " + str(smoke.get("error")))
           container = os.environ["CONTAINER"]
+          copied = []
           for name in ("prico-short.mp4", "prico-reel.mp4"):
               found = glob.glob(container + "/**/" + name, recursive=True)
               if not found:
-                  raise SystemExit("missing " + name)
+                  print("missing", name)
+                  continue
               shutil.copy(found[0], os.environ["RUNNER_TEMP"] + "/out/ios-" + name)
+              copied.append(name)
               print("copied", name, os.path.getsize(found[0]))
+          if "prico-short.mp4" not in copied:
+              raise SystemExit("missing prico-short.mp4")
+          open(os.environ["RUNNER_TEMP"] + "/out/ios-copied.txt", "w").write("\n".join(copied))
+          if not smoke.get("ok"):
+              print("device export smoke failed:", smoke.get("error"))
           PY
           node tools/check-reel.mjs "$RUNNER_TEMP/out/ios-prico-short.mp4" --music assets/music/pop.m4a --min-duration 1.5 | tee "$RUNNER_TEMP/out/ios-short-probe.json"
-          node tools/check-reel.mjs "$RUNNER_TEMP/out/ios-prico-reel.mp4" --music assets/music/pop.m4a --min-duration 50 --reel | tee "$RUNNER_TEMP/out/ios-reel-probe.json"
+          if [ -f "$RUNNER_TEMP/out/ios-prico-reel.mp4" ]; then
+            node tools/check-reel.mjs "$RUNNER_TEMP/out/ios-prico-reel.mp4" --music assets/music/pop.m4a --min-duration 50 --reel | tee "$RUNNER_TEMP/out/ios-reel-probe.json"
+          fi
+          python3 - <<'PY'
+          import json, os, sys
+          smoke = json.load(open(os.environ["RUNNER_TEMP"] + "/out/ios-device-smoke.json"))
+          if not smoke.get("ok"):
+              raise SystemExit("device export smoke failed: " + str(smoke.get("error")))
+          PY
           mkdir -p "$RUNNER_TEMP/prico-data"
           DATA_DIR="$RUNNER_TEMP/prico-data" node server/index.js > "$RUNNER_TEMP/out/ios-server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/server.pid"

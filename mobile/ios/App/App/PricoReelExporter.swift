@@ -286,13 +286,38 @@ enum PricoReelExporter {
             if CFAbsoluteTimeGetCurrent() > deadline { throw PricoReelError.message("segment timeout \(frame)/\(frames) origin \(origin) audio \(audioProduced)") }
             let videoEnd = min(audioTotal, Int((Double(frame + 1) / Double(fps) * Double(pcm.rate)).rounded()))
             try pushAudio(limit: videoEnd)
-            while !videoIn.isReadyForMoreMediaData {
-                if writer.status == .failed { throw writer.error ?? PricoReelError.message("writer failed") }
-                if CFAbsoluteTimeGetCurrent() > deadline { throw PricoReelError.message("video backpressure \(frame)/\(frames) origin \(origin) audio \(audioProduced) status \(writer.status.rawValue)") }
-                Thread.sleep(forTimeInterval: 0.005)
-            }
             let local = min(span - 0.0001, Double(frame) / Double(fps))
             let time = origin + local
+            var probe = "not-stuck"
+            var probeBuffer: CVPixelBuffer?
+            let waitStart = CFAbsoluteTimeGetCurrent()
+            while !videoIn.isReadyForMoreMediaData {
+                if writer.status == .failed { throw writer.error ?? PricoReelError.message("writer failed") }
+                if probe == "not-stuck" && CFAbsoluteTimeGetCurrent() - waitStart > 2 {
+                    let active = layers(clips, time, fade)
+                    let desc = active.enumerated().map { "\($0.offset):\($0.element.0.kind)@\(String(format: "%.2f", $0.element.1))" }.joined(separator: ",")
+                    NSLog("PRICO export stuck t=%.3f frame %d layers %d %@", time, frame, active.count, desc)
+                    if let raster = renderRaster(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: nil, singleLayer: true),
+                       let buffer = pixelBuffer(copying: raster, width: width, height: height, pool: nil) {
+                        probeBuffer = buffer
+                        probe = "single-built"
+                        NSLog("PRICO export single-layer built t=%.3f", time)
+                    } else {
+                        probe = "single-build-failed"
+                    }
+                }
+                if CFAbsoluteTimeGetCurrent() > deadline {
+                    throw PricoReelError.message("video backpressure \(frame)/\(frames) origin \(origin) audio \(audioProduced) status \(writer.status.rawValue) probe \(probe) t \(String(format: "%.3f", time))")
+                }
+                Thread.sleep(forTimeInterval: 0.005)
+            }
+            if probe == "single-built", let buffer = probeBuffer {
+                if adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))) {
+                    NSLog("PRICO export single-layer append ok t=%.3f frame %d", time, frame)
+                    continue
+                }
+                NSLog("PRICO export single-layer append failed t=%.3f %@", time, writer.error?.localizedDescription ?? "")
+            }
             let key = signature(clips: clips, time: time, fade: fade, texts: texts, captions: captions)
             if cache[key] == nil {
                 guard let raster = renderRaster(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: adaptor.pixelBufferPool) else {
@@ -403,8 +428,8 @@ enum PricoReelExporter {
         }
     }
 
-    private static func renderRaster(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, pool: CVPixelBufferPool?) -> Raster? {
-        guard let buffer = drawFrame(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: pool) else { return nil }
+    private static func renderRaster(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, pool: CVPixelBufferPool?, singleLayer: Bool = false) -> Raster? {
+        guard let buffer = drawFrame(clips: clips, time: time, fade: fade, texts: texts, captions: captions, width: width, height: height, pool: pool, singleLayer: singleLayer) else { return nil }
         CVPixelBufferLockBaseAddress(buffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
         guard let base = CVPixelBufferGetBaseAddress(buffer) else { return nil }
@@ -463,7 +488,7 @@ enum PricoReelExporter {
         return picture + ">" + title + ">" + cap
     }
 
-    private static func drawFrame(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, pool: CVPixelBufferPool?) -> CVPixelBuffer? {
+    private static func drawFrame(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, pool: CVPixelBufferPool?, singleLayer: Bool = false) -> CVPixelBuffer? {
         var pb: CVPixelBuffer?
         if let pool { CVPixelBufferPoolCreatePixelBuffer(nil, pool, &pb) }
         if pb == nil {
@@ -479,7 +504,12 @@ enum PricoReelExporter {
         ctx.translateBy(x: 0, y: CGFloat(height))
         ctx.scaleBy(x: 1, y: -1)
         ctx.interpolationQuality = .low
-        for (clip, alpha) in layers(clips, time, fade) {
+        var stack = layers(clips, time, fade)
+        if stack.count >= 2 {
+            NSLog("PRICO export layers t=%.3f n=%d a0=%.2f kind0=%@ a1=%.2f kind1=%@", time, stack.count, stack[0].1, stack[0].0.kind as NSString, stack[1].1, stack[1].0.kind as NSString)
+        }
+        if singleLayer, stack.count > 1 { stack = [(stack[0].0, 1)] }
+        for (clip, alpha) in stack {
             let image = clip.kind == "video" ? frameImage(clip, time: time) : clip.still
             guard let image else { continue }
             ctx.saveGState()
@@ -487,6 +517,7 @@ enum PricoReelExporter {
             ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
             ctx.restoreGState()
         }
+        forceOpaque(pb)
         for item in texts {
             let start = item["start"] as? Double ?? 0
             let end = item["end"] as? Double ?? 1e9
@@ -503,6 +534,22 @@ enum PricoReelExporter {
             }
         }
         return pb
+    }
+
+    private static func forceOpaque(_ pb: CVPixelBuffer) {
+        guard let base = CVPixelBufferGetBaseAddress(pb) else { return }
+        let width = CVPixelBufferGetWidth(pb)
+        let height = CVPixelBufferGetHeight(pb)
+        let stride = CVPixelBufferGetBytesPerRow(pb)
+        for y in 0..<height {
+            let row = base.advanced(by: y * stride).assumingMemoryBound(to: UInt8.self)
+            var offset = 3
+            let end = width * 4
+            while offset < end {
+                row[offset] = 255
+                offset += 4
+            }
+        }
     }
 
     private static func frameImage(_ clip: Clip, time: Double) -> CGImage? {

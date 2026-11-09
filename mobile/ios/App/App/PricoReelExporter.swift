@@ -75,7 +75,10 @@ enum PricoReelExporter {
             let seg = cache.appendingPathComponent(String(format: "seg-%02d.mp4", index))
             if FileManager.default.fileExists(atPath: seg.path) { try FileManager.default.removeItem(at: seg) }
             NSLog("PRICO export segment %d origin %.3f frames %d", index, origin, segFrames)
-            try writeSegment(url: seg, pcm: pcm, origin: origin, span: Double(segFrames) / Double(fps), frames: segFrames, fps: fps, fade: fade, clips: clips, texts: texts, captions: captions, width: width, height: height)
+            try autoreleasepool {
+                try writeSegment(url: seg, pcm: pcm, origin: origin, span: Double(segFrames) / Double(fps), frames: segFrames, fps: fps, fade: fade, clips: clips, texts: texts, captions: captions, width: width, height: height)
+            }
+            NSLog("PRICO export segment %d released", index)
             parts.append(seg)
             origin += Double(segFrames) / Double(fps)
             index += 1

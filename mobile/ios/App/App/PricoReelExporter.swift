@@ -317,8 +317,10 @@ enum PricoReelExporter {
         let first = AVURLAsset(url: parts[0])
         guard let v0 = first.tracks(withMediaType: .video).first,
               let a0 = first.tracks(withMediaType: .audio).first,
-              let vfmt = v0.formatDescriptions.first as? CMFormatDescription,
-              let afmt = a0.formatDescriptions.first as? CMFormatDescription else { throw PricoReelError.message("segment format") }
+              let vany = v0.formatDescriptions.first,
+              let aany = a0.formatDescriptions.first else { throw PricoReelError.message("segment format") }
+        let vfmt = vany as CMFormatDescription
+        let afmt = aany as CMFormatDescription
         let writer = try AVAssetWriter(outputURL: out, fileType: .mp4)
         writer.movieFragmentInterval = .invalid
         let videoIn = AVAssetWriterInput(mediaType: .video, outputSettings: nil, sourceFormatHint: vfmt)

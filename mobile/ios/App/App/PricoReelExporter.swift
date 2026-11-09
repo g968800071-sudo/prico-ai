@@ -353,90 +353,38 @@ enum PricoReelExporter {
     }
 
     private static func joinSegments(_ parts: [URL], to out: URL) throws {
-        let first = AVURLAsset(url: parts[0])
-        guard let v0 = first.tracks(withMediaType: .video).first,
-              let a0 = first.tracks(withMediaType: .audio).first,
-              let vany = v0.formatDescriptions.first,
-              let aany = a0.formatDescriptions.first else { throw PricoReelError.message("segment format") }
-        let vfmt = vany as! CMFormatDescription
-        let afmt = aany as! CMFormatDescription
-        let writer = try AVAssetWriter(outputURL: out, fileType: .mp4)
-        writer.movieFragmentInterval = .invalid
-        let videoIn = AVAssetWriterInput(mediaType: .video, outputSettings: nil, sourceFormatHint: vfmt)
-        let audioIn = AVAssetWriterInput(mediaType: .audio, outputSettings: nil, sourceFormatHint: afmt)
-        videoIn.expectsMediaDataInRealTime = false
-        audioIn.expectsMediaDataInRealTime = false
-        writer.add(videoIn)
-        writer.add(audioIn)
-        guard writer.startWriting() else { throw writer.error ?? PricoReelError.message("join writer") }
-        writer.startSession(atSourceTime: .zero)
+        let composition = AVMutableComposition()
+        guard let vTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
+              let aTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            throw PricoReelError.message("join tracks")
+        }
         var cursor = CMTime.zero
         for url in parts {
             let asset = AVURLAsset(url: url)
-            guard let v = asset.tracks(withMediaType: .video).first, let a = asset.tracks(withMediaType: .audio).first else { throw PricoReelError.message("segment track") }
-            let reader = try AVAssetReader(asset: asset)
-            let vout = AVAssetReaderTrackOutput(track: v, outputSettings: nil)
-            let aout = AVAssetReaderTrackOutput(track: a, outputSettings: nil)
-            vout.alwaysCopiesSampleData = true
-            aout.alwaysCopiesSampleData = true
-            reader.add(vout)
-            reader.add(aout)
-            guard reader.startReading() else { throw reader.error ?? PricoReelError.message("join reader") }
-            var vbuf: CMSampleBuffer? = vout.copyNextSampleBuffer()
-            var abuf: CMSampleBuffer? = aout.copyNextSampleBuffer()
-            while vbuf != nil || abuf != nil {
-                let vpts = vbuf.map { CMSampleBufferGetPresentationTimeStamp($0) } ?? .positiveInfinity
-                let apts = abuf.map { CMSampleBufferGetPresentationTimeStamp($0) } ?? .positiveInfinity
-                if let sample = vbuf, CMTimeCompare(vpts, apts) <= 0 {
-                    try appendShifted(sample, input: videoIn, offset: cursor, writer: writer)
-                    vbuf = vout.copyNextSampleBuffer()
-                } else if let sample = abuf {
-                    try appendShifted(sample, input: audioIn, offset: cursor, writer: writer)
-                    abuf = aout.copyNextSampleBuffer()
-                }
+            guard let v = asset.tracks(withMediaType: .video).first, let a = asset.tracks(withMediaType: .audio).first else {
+                throw PricoReelError.message("segment track")
             }
-            if reader.status == .failed { throw reader.error ?? PricoReelError.message("join read") }
+            let range = CMTimeRange(start: .zero, duration: asset.duration)
+            try vTrack.insertTimeRange(range, of: v, at: cursor)
+            try aTrack.insertTimeRange(range, of: a, at: cursor)
             cursor = CMTimeAdd(cursor, asset.duration)
-            NSLog("PRICO export joined %.2f", CMTimeGetSeconds(cursor))
         }
-        videoIn.markAsFinished()
-        audioIn.markAsFinished()
+        NSLog("PRICO export join parts %d dur %.2f", parts.count, CMTimeGetSeconds(cursor))
+        guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
+            throw PricoReelError.message("join export")
+        }
+        if FileManager.default.fileExists(atPath: out.path) { try FileManager.default.removeItem(at: out) }
+        exporter.outputURL = out
+        exporter.outputFileType = .mp4
         let done = DispatchSemaphore(value: 0)
-        writer.finishWriting { done.signal() }
-        if done.wait(timeout: .now() + 60) == .timedOut { throw PricoReelError.message("join timeout") }
-        if writer.status != .completed { throw writer.error ?? PricoReelError.message("join \(writer.status.rawValue)") }
-    }
-
-    private static func appendShifted(_ sample: CMSampleBuffer, input: AVAssetWriterInput, offset: CMTime, writer: AVAssetWriter) throws {
-        let count = max(1, CMSampleBufferGetNumSamples(sample))
-        var timings = Array(repeating: CMSampleTimingInfo(duration: .invalid, presentationTimeStamp: .invalid, decodeTimeStamp: .invalid), count: count)
-        CMSampleBufferGetSampleTimingInfoArray(sample, entryCount: count, arrayToFill: &timings, entriesNeededOut: nil)
-        for i in 0..<count {
-            if timings[i].presentationTimeStamp.isValid { timings[i].presentationTimeStamp = CMTimeAdd(timings[i].presentationTimeStamp, offset) }
-            if timings[i].decodeTimeStamp.isValid { timings[i].decodeTimeStamp = CMTimeAdd(timings[i].decodeTimeStamp, offset) }
+        exporter.exportAsynchronously { done.signal() }
+        if done.wait(timeout: .now() + 120) == .timedOut { throw PricoReelError.message("join timeout") }
+        if exporter.status != .completed {
+            let detail = exporter.error?.localizedDescription ?? "status \(exporter.status.rawValue)"
+            NSLog("PRICO export join failed %@", detail)
+            throw PricoReelError.message("join \(detail)")
         }
-        var copy: CMSampleBuffer?
-        guard CMSampleBufferCreateCopyWithNewTiming(allocator: kCFAllocatorDefault, sampleBuffer: sample, sampleTimingEntryCount: count, sampleTimingArray: &timings, sampleBufferOut: &copy) == noErr, let copy else {
-            throw PricoReelError.message("retimed sample")
-        }
-        var spins = 0
-        while !input.isReadyForMoreMediaData && spins < 4000 {
-            if writer.status == .failed { throw writer.error ?? PricoReelError.message("join failed") }
-            Thread.sleep(forTimeInterval: 0.005)
-            spins += 1
-        }
-        if !input.isReadyForMoreMediaData { throw PricoReelError.message("join backpressure") }
-        if !input.append(copy) { throw writer.error ?? PricoReelError.message("join append") }
-    }
-
-    private static func waitUntilReady(_ input: AVAssetWriterInput, writer: AVAssetWriter, until deadline: CFAbsoluteTime, what: String) throws {
-        while !input.isReadyForMoreMediaData {
-            if writer.status == .failed {
-                throw writer.error ?? PricoReelError.message(what + " failed")
-            }
-            if CFAbsoluteTimeGetCurrent() >= deadline { throw PricoReelError.message(what) }
-            Thread.sleep(forTimeInterval: 0.005)
-        }
+        NSLog("PRICO export join done")
     }
 
     private static func renderRaster(clips: [Clip], time: Double, fade: Double, texts: [[String: Any]], captions: [[String: Any]], width: Int, height: Int, pool: CVPixelBufferPool?, singleLayer: Bool = false) -> Raster? {
